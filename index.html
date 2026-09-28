@@ -1,0 +1,1621 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EncontraAÍ - Achados e Perdidos em São Paulo</title>
+  <meta name="description" content="Plataforma moderna, segura e colaborativa de achados e perdidos. Encontre o que perdeu ou devolva o que achou com segurança.">
+  
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2246%22 fill=%22%230d8a74%22/><path d=%22M35 35h30v30H35z%22 fill=%22none%22/><circle cx=%2245%22 cy=%2245%22 r=%2216%22 stroke=%22white%22 stroke-width=%226%22 fill=%22none%22/><line x1=%2257%22 y1=%2257%22 x2=%2272%22 y2=%2272%22 stroke=%22white%22 stroke-width=%227%22 stroke-linecap=%22round%22/><circle cx=%2245%22 cy=%2245%22 r=%226%22 fill=%22%2310b981%22/></svg>">
+
+  <!-- Fontes do Google: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Estilos locais: o ?v= força o browser a buscar cópia nova (bump ao editar CSS/JS) -->
+  <link rel="stylesheet" href="estilos/estilo.css?v=7">
+</head>
+<body>
+  <!-- Barra Principal de Navegação -->
+  <header class="main-header" id="main-header">
+    <div class="container header-container">
+      <div class="brand-area" id="brand-logo" onclick="app.navigateTo('home')">
+        <div class="brand-icon">
+          <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="32" height="32" rx="9" fill="url(#brand-grad)" />
+            <circle cx="14" cy="14" r="6.5" stroke="white" stroke-width="2.5" />
+            <path d="M19 19L25 25" stroke="white" stroke-width="2.5" stroke-linecap="round" />
+            <circle cx="14" cy="14" r="2.5" fill="#34d399" />
+            <defs>
+              <linearGradient id="brand-grad" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#0d8a74" />
+                <stop offset="1" stop-color="#065f46" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <div class="brand-name">
+          <span class="brand-main">Encontra<span class="brand-accent">AÍ</span></span>
+          <span class="brand-sub">Achados & Perdidos</span>
+        </div>
+      </div>
+
+      <!-- Busca Rápida no Cabeçalho -->
+      <div class="header-search" id="header-search-bar">
+        <svg class="search-svg" viewBox="0 0 20 20" fill="none">
+          <circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="2" />
+          <path d="M13.5 13.5L17.5 17.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        </svg>
+        <input type="text" id="header-search-input" placeholder="Buscar por chaves, mochila, garrafa, fone..." />
+        <button class="search-clear-btn" id="header-search-clear" style="display: none;">&times;</button>
+      </div>
+
+      <!-- Links de Navegação -->
+      <nav class="nav-links">
+        <button class="nav-item active" data-nav="home" id="nav-btn-home" onclick="app.navigateTo('home')">
+          <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/></svg>
+          Início
+        </button>
+        <button class="nav-item" data-nav="feed" id="nav-btn-feed" onclick="app.navigateTo('feed')">
+          <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+          Buscar Itens
+        </button>
+        <button class="nav-item" data-nav="my-items" id="nav-btn-my-items" onclick="app.navigateTo('my-items')">
+          <svg viewBox="0 0 20 20" fill="currentColor"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"/></svg>
+          Meus Itens
+        </button>
+        <button class="nav-item nav-messages" data-nav="messages" id="nav-btn-messages" onclick="app.navigateTo('messages')">
+          <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clip-rule="evenodd"/></svg>
+          Mensagens
+          <span class="badge-counter" id="unread-messages-badge" style="display: none;">0</span>
+        </button>
+      </nav>
+
+      <!-- Botões de Ação e Menu do Usuário -->
+      <div class="header-actions">
+        <button class="btn btn-primary btn-add-item" id="btn-header-create-item" onclick="app.navigateTo('create-item')">
+          <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+          Cadastrar Item
+        </button>
+        
+        <div class="user-profile-menu" id="user-profile-menu">
+          <button class="profile-avatar-btn" id="btn-user-avatar" onclick="app.toggleUserMenu()">
+            <div class="avatar-circle">
+              <span id="header-user-initials"></span>
+            </div>
+            <span class="user-name-label" id="header-user-name"></span>
+            <svg class="chevron-down" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+          </button>
+          
+          <div class="user-dropdown-popover" id="user-dropdown-popover">
+            <div class="user-dropdown-header">
+              <div class="dropdown-avatar" id="dropdown-avatar"></div>
+              <div>
+                <strong id="dropdown-name"></strong>
+                <p id="dropdown-email"></p>
+                <span class="user-role-badge" id="dropdown-role-badge"></span>
+              </div>
+            </div>
+            <div class="dropdown-divider"></div>
+            <button class="dropdown-link" onclick="app.navigateTo('profile')">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
+              Meu Perfil & Reputação
+            </button>
+            <button class="dropdown-link" onclick="app.navigateTo('my-items')">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"/></svg>
+              Meus Anúncios Cadastrados
+            </button>
+            <button class="dropdown-link" onclick="app.navigateTo('messages')">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7z" clip-rule="evenodd"/></svg>
+              Mensagens & Notificações
+            </button>
+            <div class="dropdown-divider"></div>
+            <button class="dropdown-link text-danger" onclick="app.openAuthModal()">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clip-rule="evenodd"/></svg>
+              Alternar Conta / Sair
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Contêiner Principal de Views -->
+  <main class="main-content" id="main-content">
+    
+    <!-- ============================================== -->
+    <!-- VISÃO 1: INÍCIO (TELA 2 DO FIGMA) -->
+    <!-- ============================================== -->
+    <section class="view-section active" id="view-home">
+      
+      <!-- SEÇÃO DE DESTAQUE -->
+      <section class="hero-section">
+        <div class="container hero-grid">
+          
+          <!-- Coluna Esquerda: Texto e Ações Duplas -->
+          <div class="hero-left">
+            <div class="hero-pill">
+              <span class="pill-dot"></span>
+              Plataforma de Achados & Perdidos em São Paulo
+            </div>
+            
+            <h1 class="hero-title">
+              Perdeu ou encontrou algo em São Paulo? <span class="highlight-text">Nós te ajudamos a encontrar!</span>
+            </h1>
+            
+            <p class="hero-subtitle">
+              Conectamos os bairros de São Paulo para devolver pertences de forma rápida, segura e com validação de posse.
+            </p>
+            
+            <!-- Botões de Ação Duplos (CTA) (correspondente aos botões vermelho e verde da Tela 2 do Figma) -->
+            <div class="hero-dual-cta">
+              <button class="btn btn-hero-lost" id="btn-hero-lost" onclick="app.handleHeroAction('lost')">
+                <div class="btn-icon-bubble bg-lost">
+                  <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+                </div>
+                <div class="btn-text-content">
+                  <span class="btn-title">Perdi algo</span>
+                  <span class="btn-desc">Buscar nos itens encontrados</span>
+                </div>
+              </button>
+
+              <button class="btn btn-hero-found" id="btn-hero-found" onclick="app.handleHeroAction('found')">
+                <div class="btn-icon-bubble bg-found">
+                  <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                </div>
+                <div class="btn-text-content">
+                  <span class="btn-title">Encontrei algo</span>
+                  <span class="btn-desc">Cadastrar e ajudar o dono</span>
+                </div>
+              </button>
+            </div>
+
+            <!-- Stats Bar -->
+            <div class="hero-stats">
+              <div class="stat-item">
+                <span class="stat-number">1.480+</span>
+                <span class="stat-label">Itens Devolvidos</span>
+              </div>
+              <div class="stat-divider"></div>
+              <div class="stat-item">
+                <span class="stat-number">94%</span>
+                <span class="stat-label">Taxa de Sucesso</span>
+              </div>
+              <div class="stat-divider"></div>
+              <div class="stat-item">
+                <span class="stat-number">24h</span>
+                <span class="stat-label">Tempo Médio</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Coluna Direita: Cartão de Atividade ao Vivo (correspondente ao widget direito da Tela 2 do Figma) -->
+          <div class="hero-right">
+            <div class="live-activity-card">
+              <div class="activity-header">
+                <div class="live-indicator">
+                  <span class="pulse-ring"></span>
+                  <span class="pulse-dot"></span>
+                  <strong>Atividade em Tempo Real</strong>
+                </div>
+                <span class="region-tag">São Paulo</span>
+              </div>
+
+              <div class="activity-feed-list" id="hero-activity-list">
+                <!-- Preenchido dinamicamente via JS -->
+              </div>
+
+              <div class="activity-footer">
+                <div class="safe-badge-pill">
+                  <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 1.944A11.954 11.954 0 012.166 5C2.056 5.649 2 6.319 2 7c0 5.225 3.34 9.67 8 11.317C14.66 16.67 18 12.225 18 7c0-.682-.057-1.35-.166-2.001A11.954 11.954 0 0110 1.944zM11 14a1 1 0 11-2 0 1 1 0 012 0zm0-7a1 1 0 10-2 0v3a1 1 0 102 0V7z" clip-rule="evenodd"/></svg>
+                  <span>3 Pontos de Entrega Oficiais com Segurança</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- BARRA UNIFICADA DE BUSCA E FILTROS -->
+      <section class="search-bar-section">
+        <div class="container">
+          <div class="unified-search-box">
+            <div class="search-col keyword-col">
+              <label for="home-search-query">O que você procura?</label>
+              <div class="input-with-icon">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+                <input type="text" id="home-search-query" placeholder="Ex: chave de carro, mochila dell, garrafa..." />
+              </div>
+            </div>
+
+            <div class="search-divider"></div>
+
+            <div class="search-col category-col">
+              <label for="home-search-category">Categoria</label>
+              <select id="home-search-category">
+                <option value="">Todas as Categorias</option>
+                <option value="eletronicos">Eletrônicos & Fones</option>
+                <option value="documentos">Documentos & Cartões</option>
+                <option value="chaves">Chaves & Crachás</option>
+                <option value="mochilas">Mochilas & Bolsas</option>
+                <option value="roupas">Roupas & Agasalhos</option>
+                <option value="garrafas">Garrafas & Copos</option>
+                <option value="oculos">Óculos & Acessórios</option>
+                <option value="outros">Outros</option>
+              </select>
+            </div>
+
+            <div class="search-divider"></div>
+
+            <div class="search-col location-col">
+              <label for="home-search-location">Local</label>
+              <select id="home-search-location">
+                <option value="">Todos os locais de São Paulo</option>
+                <option value="Biblioteca Mário de Andrade">Biblioteca Mário de Andrade</option>
+                <option value="Mercado Municipal">Mercado Municipal</option>
+                <option value="Estação de Metrô">Estação de Metrô</option>
+                <option value="Parque Ibirapuera">Parque Ibirapuera</option>
+                <option value="Ceasa">Ceasa</option>
+                <option value="Ginásio Municipal">Ginásio Municipal</option>
+                <option value="Auditório Ibirapuera">Auditório Ibirapuera</option>
+                <option value="Estacionamento Rotativo (Zona Azul)">Estacionamento Rotativo (Zona Azul)</option>
+              </select>
+            </div>
+
+            <button class="btn btn-primary btn-search-execute" id="btn-home-search" onclick="app.executeHomeSearch()">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+              Buscar
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- CHIPS DE CATEGORIAS / CARROSSEL (correspondente à fileira de ícones da Tela 2 do Figma) -->
+      <section class="category-carousel-section">
+        <div class="container">
+          <div class="section-title-row">
+            <div>
+              <h2 class="section-title">Categorias Mais Frequentes</h2>
+              <p class="section-subtitle">Filtre rapidamente pelo tipo de objeto perdido ou encontrado</p>
+            </div>
+            <button class="link-btn" onclick="app.navigateTo('feed')">Ver todas as categorias &rarr;</button>
+          </div>
+
+          <div class="categories-row" id="categories-chips-container">
+            <!-- Preenchido dinamicamente -->
+          </div>
+        </div>
+      </section>
+
+      <!-- GRADE DE ITENS RECENTES (correspondente à grade 3x2 da Tela 2 do Figma) -->
+      <section class="recent-items-section">
+        <div class="container">
+          <div class="section-header-tabs">
+            <div>
+              <h2 class="section-title">Itens Recentes por Perto</h2>
+              <p class="section-subtitle">Últimos objetos cadastrados pela comunidade</p>
+            </div>
+            
+            <div class="filter-tabs-pill">
+              <button class="tab-pill active" data-tab="all" onclick="app.filterHomeItems('all')">Todos</button>
+              <button class="tab-pill text-found" data-tab="found" onclick="app.filterHomeItems('found')">
+                <span class="tab-indicator green"></span> Achados
+              </button>
+              <button class="tab-pill text-lost" data-tab="lost" onclick="app.filterHomeItems('lost')">
+                <span class="tab-indicator red"></span> Perdidos
+              </button>
+            </div>
+          </div>
+
+          <!-- Grade de Itens -->
+          <div class="items-grid" id="home-recent-items-grid">
+            <!-- Populated via JS -->
+          </div>
+
+          <div class="view-all-cta">
+            <button class="btn btn-outline" onclick="app.navigateTo('feed')">
+              Explorar Todos os Itens Cadastrados
+              <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- SEÇÃO COMO FUNCIONA (correspondente aos 3 cartões do topo da Tela 3 do Figma) -->
+      <section class="how-it-works-section" id="how-it-works">
+        <div class="container">
+          <div class="section-center-header">
+            <span class="section-eyebrow">PASSO A PASSO</span>
+            <h2 class="section-title">Como Funciona o EncontraAÍ</h2>
+            <p class="section-subtitle">Um ecossistema seguro e transparente para devoluções com confiança</p>
+          </div>
+
+          <div class="steps-grid">
+            <!-- Step 1 -->
+            <div class="step-card">
+              <div class="step-number-badge">01</div>
+              <div class="step-icon-box bg-mint">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 20h9"></path>
+                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                </svg>
+              </div>
+              <h3 class="step-title">Cadastre o Item</h3>
+              <p class="step-desc">Tire uma foto, indique onde e quando o item foi visto ou perdido, e defina uma pergunta de confirmação de posse.</p>
+              <div class="step-footer-tip">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                Menos de 2 minutos para publicar
+              </div>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="step-card">
+              <div class="step-number-badge">02</div>
+              <div class="step-icon-box bg-blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+              </div>
+              <h3 class="step-title">Converse com Segurança</h3>
+              <p class="step-desc">Utilize nosso chat integrado sem precisar compartilhar seu número pessoal. O dono responde a pergunta de segurança para validar a posse.</p>
+              <div class="step-footer-tip">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                Privacidade 100% protegida
+              </div>
+            </div>
+
+            <!-- Step 3 -->
+            <div class="step-card">
+              <div class="step-number-badge">03</div>
+              <div class="step-icon-box bg-gold">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                  <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+              </div>
+              <h3 class="step-title">Devolução com Sucesso</h3>
+              <p class="step-desc">Combine a entrega em um dos pontos oficiais recomendados (Biblioteca Mário de Andrade, Estação de Metrô ou Auditório Ibirapuera) e ganhe pontos de reputação.</p>
+              <div class="step-footer-tip">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                Pontos de encontro monitorados
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- BANNER INFERIOR (correspondente ao banner inferior da Tela 2 do Figma) -->
+      <section class="cta-banner-section">
+        <div class="container">
+          <div class="cta-banner-card">
+            <div class="cta-banner-content">
+              <h2>Achou algo e quer fazer a diferença?</h2>
+              <p>Cadastre o item encontrado em poucos cliques. Alguém pode estar procurando desesperadamente por ele agora mesmo!</p>
+              <div class="cta-banner-buttons">
+                <button class="btn btn-white" onclick="app.navigateTo('create-item')">
+                  <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+                  Cadastrar Item Achado
+                </button>
+                <button class="btn btn-ghost-white" onclick="app.navigateTo('feed')">
+                  Ver Itens Perdidos
+                </button>
+              </div>
+            </div>
+            <div class="cta-banner-badge-art">
+              <div class="shield-circle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </section>
+
+    <!-- ============================================== -->
+    <!-- VISÃO 2: FEED E BUSCA AVANÇADA (TELA 4 DO FIGMA) -->
+    <!-- ============================================== -->
+    <section class="view-section" id="view-feed">
+      <div class="container feed-container">
+        
+        <!-- Breadcrumb e Cabeçalho do Feed -->
+        <div class="page-header-row">
+          <div>
+            <div class="breadcrumbs">
+              <a href="#" onclick="app.navigateTo('home')">Início</a> &rsaquo; <span>Buscar Itens</span>
+            </div>
+            <h1 class="page-title">Buscar Itens Perdidos e Achados</h1>
+            <p class="page-desc">Use os filtros laterais para refinar por tipo, localização e data aproximada.</p>
+          </div>
+          
+          <button class="btn btn-primary" onclick="app.navigateTo('create-item')">
+            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+            Anunciar Novo Item
+          </button>
+        </div>
+
+        <!-- Quick Tag Suggestions -->
+        <div class="quick-tags-row">
+          <span class="tags-label">Mais buscados:</span>
+          <button class="tag-chip" onclick="app.applyQuickFilter('chaves')">Chaves</button>
+          <button class="tag-chip" onclick="app.applyQuickFilter('mochila')">Mochila</button>
+          <button class="tag-chip" onclick="app.applyQuickFilter('garrafa')">Garrafa Térmica</button>
+          <button class="tag-chip" onclick="app.applyQuickFilter('fone')">Fone Bluetooth</button>
+          <button class="tag-chip" onclick="app.applyQuickFilter('carteira')">Carteira</button>
+          <button class="tag-chip" onclick="app.applyQuickFilter('óculos')">Óculos</button>
+          <button class="tag-chip" onclick="app.applyQuickFilter('casaco')">Casaco</button>
+        </div>
+
+        <!-- Layout Principal do Feed: Filtros Laterais + Grade de Itens -->
+        <div class="feed-layout">
+          
+          <!-- FILTROS DA BARRA LATERAL ESQUERDA (correspondente ao painel esquerdo da Tela 4 do Figma) -->
+          <aside class="feed-sidebar">
+            <div class="filter-card">
+              <div class="filter-header">
+                <h3>Filtros</h3>
+                <button class="clear-filters-link" id="btn-clear-all-filters" onclick="app.clearAllFilters()">Limpar todos</button>
+              </div>
+
+              <!-- Campo de Busca -->
+              <div class="filter-group">
+                <label class="filter-label">Termo de Busca</label>
+                <div class="sidebar-search-input">
+                  <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+                  <input type="text" id="feed-search-input" placeholder="Buscar por palavra-chave..." oninput="app.triggerFilterUpdate()" />
+                </div>
+              </div>
+
+              <!-- Alternador de Tipo (Todos / Achados / Perdidos) -->
+              <div class="filter-group">
+                <label class="filter-label">Tipo de Registro</label>
+                <div class="type-segmented-control">
+                  <button class="seg-btn active" data-type="all" onclick="app.setFeedTypeFilter('all')">Todos</button>
+                  <button class="seg-btn" data-type="found" onclick="app.setFeedTypeFilter('found')">Achados</button>
+                  <button class="seg-btn" data-type="lost" onclick="app.setFeedTypeFilter('lost')">Perdidos</button>
+                </div>
+              </div>
+
+              <!-- Caixas de Seleção de Categorias -->
+              <div class="filter-group">
+                <label class="filter-label">Categorias</label>
+                <div class="checkbox-list" id="feed-category-checkboxes">
+                  <label class="custom-checkbox">
+                    <input type="checkbox" value="eletronicos" onchange="app.triggerFilterUpdate()" checked>
+                    <span class="checkmark"></span>
+                    <span class="chk-label">Eletrônicos & Fones</span>
+                    <span class="chk-count" id="count-cat-eletronicos">0</span>
+                  </label>
+                  <label class="custom-checkbox">
+                    <input type="checkbox" value="documentos" onchange="app.triggerFilterUpdate()" checked>
+                    <span class="checkmark"></span>
+                    <span class="chk-label">Documentos & Cartões</span>
+                    <span class="chk-count" id="count-cat-documentos">0</span>
+                  </label>
+                  <label class="custom-checkbox">
+                    <input type="checkbox" value="chaves" onchange="app.triggerFilterUpdate()" checked>
+                    <span class="checkmark"></span>
+                    <span class="chk-label">Chaves & Crachás</span>
+                    <span class="chk-count" id="count-cat-chaves">0</span>
+                  </label>
+                  <label class="custom-checkbox">
+                    <input type="checkbox" value="mochilas" onchange="app.triggerFilterUpdate()" checked>
+                    <span class="checkmark"></span>
+                    <span class="chk-label">Mochilas & Bolsas</span>
+                    <span class="chk-count" id="count-cat-mochilas">0</span>
+                  </label>
+                  <label class="custom-checkbox">
+                    <input type="checkbox" value="roupas" onchange="app.triggerFilterUpdate()" checked>
+                    <span class="checkmark"></span>
+                    <span class="chk-label">Roupas & Agasalhos</span>
+                    <span class="chk-count" id="count-cat-roupas">0</span>
+                  </label>
+                  <label class="custom-checkbox">
+                    <input type="checkbox" value="garrafas" onchange="app.triggerFilterUpdate()" checked>
+                    <span class="checkmark"></span>
+                    <span class="chk-label">Garrafas & Copos</span>
+                    <span class="chk-count" id="count-cat-garrafas">0</span>
+                  </label>
+                  <label class="custom-checkbox">
+                    <input type="checkbox" value="oculos" onchange="app.triggerFilterUpdate()" checked>
+                    <span class="checkmark"></span>
+                    <span class="chk-label">Óculos & Acessórios</span>
+                    <span class="chk-count" id="count-cat-oculos">0</span>
+                  </label>
+                  <label class="custom-checkbox">
+                    <input type="checkbox" value="outros" onchange="app.triggerFilterUpdate()" checked>
+                    <span class="checkmark"></span>
+                    <span class="chk-label">Outros</span>
+                    <span class="chk-count" id="count-cat-outros">0</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Seletor de Local -->
+              <div class="filter-group">
+                <label class="filter-label" for="feed-filter-location">Local</label>
+                <select id="feed-filter-location" class="form-select" onchange="app.triggerFilterUpdate()">
+                  <option value="">Todos os locais de São Paulo</option>
+                  <option value="Biblioteca Mário de Andrade">Biblioteca Mário de Andrade</option>
+                  <option value="Mercado Municipal">Mercado Municipal</option>
+                  <option value="Estação de Metrô">Estação de Metrô</option>
+                  <option value="Parque Ibirapuera">Parque Ibirapuera</option>
+                  <option value="Ceasa">Ceasa</option>
+                  <option value="Ginásio Municipal">Ginásio Municipal</option>
+                  <option value="Auditório Ibirapuera">Auditório Ibirapuera</option>
+                  <option value="Estacionamento Rotativo (Zona Azul)">Estacionamento Rotativo (Zona Azul)</option>
+                </select>
+              </div>
+
+              <!-- Filtro de Período / Data -->
+              <div class="filter-group">
+                <label class="filter-label" for="feed-filter-period">Período de Ocorrência</label>
+                <select id="feed-filter-period" class="form-select" onchange="app.triggerFilterUpdate()">
+                  <option value="all">Qualquer data</option>
+                  <option value="today">Hoje (últimas 24h)</option>
+                  <option value="week">Últimos 7 dias</option>
+                  <option value="month">Últimos 30 dias</option>
+                </select>
+              </div>
+
+              <!-- Filtro de Status -->
+              <div class="filter-group">
+                <label class="custom-checkbox">
+                  <input type="checkbox" id="feed-filter-unresolved" onchange="app.triggerFilterUpdate()" checked>
+                  <span class="checkmark"></span>
+                  <span class="chk-label">Apenas itens em aberto (não devolvidos)</span>
+                </label>
+              </div>
+
+              <!-- Cartão de Alerta de Notificação (correspondente ao banner inferior da Tela 4 do Figma) -->
+              <div class="sidebar-alert-card">
+                <h4>Não achou seu pertence?</h4>
+                <p>Crie um alerta automático! Avisamos você assim que alguém cadastrar um item compatível.</p>
+                <button class="btn btn-sm btn-outline-white" onclick="app.openCreateAlertModal()">Criar Alerta</button>
+              </div>
+            </div>
+          </aside>
+
+          <!-- RESULTADOS DO FEED À DIREITA -->
+          <div class="feed-results-area">
+            
+            <!-- Barra de Resultados com Contador e Ordenação -->
+            <div class="results-control-bar">
+              <div class="results-counter">
+                <span id="results-count-text">Exibindo <strong>6</strong> de <strong>6</strong> itens</span>
+              </div>
+              
+              <div class="sort-control">
+                <label for="feed-sort-select">Ordenar por:</label>
+                <select id="feed-sort-select" onchange="app.triggerFilterUpdate()">
+                  <option value="recent">Mais recentes primeiro</option>
+                  <option value="oldest">Mais antigos primeiro</option>
+                  <option value="title">Título (A-Z)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Grade de Cartões de Itens -->
+            <div class="items-grid feed-grid" id="feed-items-grid">
+              <!-- Populated via JS -->
+            </div>
+
+            <!-- Estado Vazio quando nada é encontrado -->
+            <div class="empty-state-card" id="feed-empty-state" style="display: none;">
+              <h3>Nenhum item encontrado com esses filtros</h3>
+              <p>Tente ajustar as palavras-chave, selecionar outras categorias ou limpar os filtros de busca.</p>
+              <div class="empty-actions">
+                <button class="btn btn-secondary" onclick="app.clearAllFilters()">Limpar Filtros</button>
+                <button class="btn btn-primary" onclick="app.navigateTo('create-item')">Cadastrar o que você perdeu</button>
+              </div>
+            </div>
+
+            <!-- Pagination Bar -->
+            <div class="pagination-bar" id="feed-pagination">
+              <button class="page-btn disabled">&laquo; Anterior</button>
+              <button class="page-btn active">1</button>
+              <button class="page-btn disabled">Próxima &raquo;</button>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- VISÃO 3: MODAL/PÁGINA DE DETALHES DO ITEM (TELA 3 DO FIGMA) -->
+    <!-- ============================================== -->
+    <section class="view-section" id="view-item-detail">
+      <div class="container detail-container">
+        
+        <!-- Breadcrumbs & Back -->
+        <div class="detail-top-nav">
+          <button class="back-link-btn" onclick="app.goBack()">
+            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"/></svg>
+            Voltar para a listagem
+          </button>
+          <div class="item-actions-quick">
+            <button class="btn-icon-action" id="btn-share-item" onclick="app.shareCurrentItem()" title="Compartilhar">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z"/></svg>
+              Compartilhar
+            </button>
+            <button class="btn-icon-action" id="btn-favorite-item" onclick="app.toggleCurrentFavorite()" title="Salvar">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- 3 Cartões de Aviso de Segurança (correspondente ao banner do topo da Tela 3 do Figma) -->
+        <div class="detail-safety-trio">
+          <div class="safety-trio-card">
+            <div class="safety-icon-mini green">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>
+            </div>
+            <div>
+              <strong>Ponto de Retirada Seguro</strong>
+              <p>Combine entregas sempre em locais públicos e movimentados.</p>
+            </div>
+          </div>
+
+          <div class="safety-trio-card">
+            <div class="safety-icon-mini blue">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 012 2 1 1 0 102 0 4 4 0 00-4-4z" clip-rule="evenodd"/></svg>
+            </div>
+            <div>
+              <strong>Validação de Posse</strong>
+              <p>Responda à pergunta de segurança ou comprove detalhes do objeto.</p>
+            </div>
+          </div>
+
+          <div class="safety-trio-card">
+            <div class="safety-icon-mini gold">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+            </div>
+            <div>
+              <strong>Comunicação Protegida</strong>
+              <p>Mantenha as conversas dentro do chat do EncontraAÍ para segurança.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Grade Principal de Detalhes: Fotos + Informações -->
+        <div class="detail-main-grid" id="detail-dynamic-content">
+          <!-- Preenchido via JS com base no item selecionado -->
+        </div>
+
+        <!-- Seção de Itens Relacionados (correspondente à parte inferior da Tela 3 do Figma) -->
+        <div class="detail-related-section">
+          <div class="section-title-row">
+            <div>
+              <h2 class="section-title">Outros Itens Cadastrados por Perto</h2>
+              <p class="section-subtitle">Objetos encontrados recentemente no mesmo prédio ou departamento</p>
+            </div>
+          </div>
+          <div class="items-grid" id="detail-related-grid">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- VISÃO 4: CADASTRAR NOVO ITEM (TELA 5 DO FIGMA) -->
+    <!-- ============================================== -->
+    <section class="view-section" id="view-create-item">
+      <div class="container create-container">
+        
+        <div class="page-header-row">
+          <div>
+            <div class="breadcrumbs">
+              <a href="#" onclick="app.navigateTo('home')">Início</a> &rsaquo; <span>Cadastrar Item</span>
+            </div>
+            <h1 class="page-title">Cadastrar Novo Item</h1>
+            <p class="page-desc">Preencha as informações detalhadas para que o dono ou o encontrador identifique o objeto rapidamente.</p>
+          </div>
+        </div>
+
+        <!-- Layout do Cartão de Formulário -->
+        <div class="form-card-container">
+          
+          <!-- Abas de Alternância de Tipo (Perdi vs Encontrei) -->
+          <div class="form-type-selector">
+            <label class="type-option-card active" id="type-opt-found" onclick="app.setCreateItemType('found')">
+              <input type="radio" name="item_type" value="found" checked>
+              <div class="type-opt-content">
+                <div class="type-icon green">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                </div>
+                <div>
+                  <strong>Encontrei um item</strong>
+                  <p>Quero encontrar o dono e devolver o pertence</p>
+                </div>
+              </div>
+            </label>
+
+            <label class="type-option-card" id="type-opt-lost" onclick="app.setCreateItemType('lost')">
+              <input type="radio" name="item_type" value="lost">
+              <div class="type-opt-content">
+                <div class="type-icon red">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                </div>
+                <div>
+                  <strong>Perdi um item</strong>
+                  <p>Estou procurando meu objeto perdido em São Paulo</p>
+                </div>
+              </div>
+            </label>
+          </div>
+
+          <form id="create-item-form" onsubmit="app.handleCreateItemSubmit(event)">
+            
+            <div class="create-form-grid">
+              
+              <!-- Coluna Esquerda: Zona de Envio de Foto -->
+              <div class="form-left-col">
+                <label class="form-label">
+                  Fotos do Item <span class="required">*</span>
+                  <span class="label-hint">Adicione fotos nítidas do objeto</span>
+                </label>
+
+                <!-- Área de Arrastar e Soltar -->
+                <div class="dropzone-area" id="item-dropzone">
+                  <input type="file" id="file-input-item" accept="image/*" style="display: none;" onchange="app.handleImageFileSelect(event)" />
+                  <div class="dropzone-visual" onclick="document.getElementById('file-input-item').click()">
+                    <div class="upload-icon-circle">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    </div>
+                    <strong>Arraste fotos aqui ou <span class="text-primary">clique para enviar</span></strong>
+                    <p class="dropzone-sub">PNG, JPG, WEBP até 10MB</p>
+                  </div>
+                </div>
+
+                <!-- Imagens de Exemplo Prontas para Demonstração -->
+                <div class="sample-photos-box">
+                  <span class="sample-title">Ou escolha uma imagem de exemplo:</span>
+                  <div class="sample-thumbnails">
+                    <img src="recursos/imagens/mochila.jpg" alt="Mochila" onclick="app.setSampleImage('recursos/imagens/mochila.jpg')" title="Mochila" />
+                    <img src="recursos/imagens/chaves.jpg" alt="Chaves" onclick="app.setSampleImage('recursos/imagens/chaves.jpg')" title="Chaves" />
+                    <img src="recursos/imagens/carteira.jpg" alt="Carteira" onclick="app.setSampleImage('recursos/imagens/carteira.jpg')" title="Carteira" />
+                    <img src="recursos/imagens/fone.jpg" alt="Fone" onclick="app.setSampleImage('recursos/imagens/fone.jpg')" title="Fone" />
+                    <img src="recursos/imagens/garrafa.jpg" alt="Garrafa" onclick="app.setSampleImage('recursos/imagens/garrafa.jpg')" title="Garrafa" />
+                    <img src="recursos/imagens/oculos.jpg" alt="Óculos" onclick="app.setSampleImage('recursos/imagens/oculos.jpg')" title="Óculos" />
+                  </div>
+                </div>
+
+                <!-- Área de Pré-visualização -->
+                <div class="uploaded-previews-area" id="uploaded-previews-area" style="display: none;">
+                  <span class="preview-title">Foto selecionada:</span>
+                  <div class="preview-card">
+                    <img id="image-preview-element" src="" alt="Preview do item" />
+                    <button type="button" class="btn-remove-preview" onclick="app.clearUploadedImage()">&times;</button>
+                  </div>
+                </div>
+
+                <!-- Privacy & Security Box -->
+                <div class="form-safety-box">
+                  <div>
+                    <strong>Dica de ouro:</strong>
+                    <p>Ao cadastrar itens com valor sentimental ou financeiro (como celulares ou mochilas), não mostre senhas, documentos abertos ou conteúdo secreto nas fotos.</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Coluna Direita: Campos -->
+              <div class="form-right-col">
+                
+                <!-- Campo de Título -->
+                <div class="form-group">
+                  <label class="form-label" for="item-title">
+                    Título do Item <span class="required">*</span>
+                  </label>
+                  <input type="text" id="item-title" class="form-control" placeholder="Ex: Mochila Dell preta com notebook e caderno" required />
+                </div>
+
+                <!-- Category & Date Row -->
+                <div class="form-row-2">
+                  <div class="form-group">
+                    <label class="form-label" for="item-category">
+                      Categoria <span class="required">*</span>
+                    </label>
+                    <select id="item-category" class="form-select" required>
+                      <option value="">Selecione uma categoria...</option>
+                      <option value="eletronicos">Eletrônicos & Fones</option>
+                      <option value="documentos">Documentos & Cartões</option>
+                      <option value="chaves">Chaves & Crachás</option>
+                      <option value="mochilas">Mochilas & Bolsas</option>
+                      <option value="roupas">Roupas & Agasalhos</option>
+                      <option value="garrafas">Garrafas & Copos</option>
+                      <option value="oculos">Óculos & Acessórios</option>
+                      <option value="outros">Outros</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="item-date">
+                      Data da Ocorrência <span class="required">*</span>
+                    </label>
+                    <input type="date" id="item-date" class="form-control" required />
+                  </div>
+                </div>
+
+                <!-- Location Row -->
+                <div class="form-row-2">
+                  <div class="form-group">
+                    <label class="form-label" for="item-location-preset">
+                      Local Principal <span class="required">*</span>
+                    </label>
+                    <select id="item-location-preset" class="form-select" required onchange="app.handleLocationPresetChange()">
+                      <option value="">Selecione o local...</option>
+                      <option value="Biblioteca Mário de Andrade">Biblioteca Mário de Andrade</option>
+                      <option value="Mercado Municipal">Mercado Municipal</option>
+                      <option value="Estação de Metrô">Estação de Metrô</option>
+                      <option value="Parque Ibirapuera">Parque Ibirapuera</option>
+                      <option value="Ceasa">Ceasa</option>
+                      <option value="Ginásio Municipal">Ginásio Municipal</option>
+                      <option value="Auditório Ibirapuera">Auditório Ibirapuera</option>
+                      <option value="Estacionamento Rotativo (Zona Azul)">Estacionamento Rotativo (Zona Azul)</option>
+                      <option value="Outro">Outro local</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="item-location-detail">
+                      Detalhes do Ponto de Referência
+                    </label>
+                    <input type="text" id="item-location-detail" class="form-control" placeholder="Ex: prunedão, 2º andar, perto da janela - bairro do Sé" />
+                  </div>
+                </div>
+
+                <!-- Description -->
+                <div class="form-group">
+                  <label class="form-label" for="item-description">
+                    Descrição Detalhada <span class="required">*</span>
+                    <span class="label-hint">Mencione marcas, cores, chaveiros ou detalhes visuais</span>
+                  </label>
+                  <textarea id="item-description" class="form-control" rows="4" placeholder="Descreva o estado de conservação, cores, chaveiros, marcas ou qualquer sinal que ajude na identificação..." required></textarea>
+                </div>
+
+                <!-- Pergunta de Verificação de Segurança (correspondente à Tela 5 do Figma) -->
+                <div class="security-question-card" id="security-question-card">
+                  <div class="sec-card-header">
+                    <div>
+                      <strong>Pergunta de Comprovação de Propriedade (Segurança)</strong>
+                      <p>Para evitar reivindicações falsas, defina uma pergunta que apenas o verdadeiro dono sabe responder.</p>
+                    </div>
+                  </div>
+                  <div class="form-group mb-2">
+                    <input type="text" id="item-security-question" class="form-control" placeholder="Ex: O que está escrito na etiqueta interna ou o que tem no bolso menor?" />
+                  </div>
+                  <div class="form-group">
+                    <input type="text" id="item-security-answer" class="form-control" placeholder="Resposta esperada (guardada de forma confidencial)" />
+                  </div>
+                </div>
+
+                <!-- Alternadores de Contato e Privacidade -->
+                <div class="form-group mt-3">
+                  <label class="custom-checkbox">
+                    <input type="checkbox" id="item-allow-chat" checked>
+                    <span class="checkmark"></span>
+                    <span class="chk-label">Permitir mensagens através do chat interno do EncontraAÍ (Recomendado)</span>
+                  </label>
+                  <label class="custom-checkbox mt-2">
+                    <input type="checkbox" id="item-show-phone">
+                    <span class="checkmark"></span>
+                    <span class="chk-label">Disponibilizar meu WhatsApp/telefone para contato direto</span>
+                  </label>
+                </div>
+
+                <!-- Barra do Botão de Envio -->
+                <div class="form-submit-row">
+                  <button type="button" class="btn btn-secondary" onclick="app.goBack()">Cancelar</button>
+                  <button type="submit" class="btn btn-primary btn-lg" id="btn-submit-item">
+                    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                    Publicar Anúncio Agora
+                  </button>
+                </div>
+
+              </div>
+
+            </div>
+
+          </form>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- VISÃO 5: CHAT E MENSAGENS (TELA 6 DO FIGMA) -->
+    <!-- ============================================== -->
+    <section class="view-section" id="view-messages">
+      <div class="container messages-container">
+        
+        <div class="messages-board">
+          
+          <!-- ESQUERDA: Lista de Conversas -->
+          <div class="conversations-sidebar">
+            <div class="conv-sidebar-header">
+              <h2>Mensagens</h2>
+              <div class="conv-search-box">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+                <input type="text" id="conv-search-input" placeholder="Buscar conversas..." oninput="app.filterConversations()" />
+              </div>
+            </div>
+
+            <div class="conversations-list" id="conversations-list">
+              <!-- Preenchido dinamicamente via JS -->
+            </div>
+          </div>
+
+          <!-- DIREITA: Sala de Chat Ativa -->
+          <div class="chat-room-area" id="chat-room-area">
+            
+            <!-- BARRA SUPERIOR: Banner de Contexto do Item Negociado (correspondente à barra superior da Tela 6 do Figma) -->
+            <div class="chat-item-context-banner" id="chat-item-banner">
+              <div class="item-context-info">
+                <img id="chat-banner-item-thumb" src="recursos/imagens/mochila.jpg" alt="Miniatura do item" />
+                <div>
+                  <div class="context-pill-row">
+                    <span class="badge-status badge-found" id="chat-banner-status-badge">ACHADO</span>
+                    <span class="item-code-tag" id="chat-banner-item-code">#EA-8492</span>
+                  </div>
+                  <strong class="item-context-title" id="chat-banner-item-title">Mochila Preta Dell com notebook</strong>
+                  <span class="item-context-location" id="chat-banner-item-location">Biblioteca Mário de Andrade - 2º Andar</span>
+                </div>
+              </div>
+
+              <div class="item-context-actions">
+                <button class="btn btn-sm btn-outline" id="btn-view-item-from-chat" onclick="app.viewItemFromChat()">
+                  Ver Anúncio
+                </button>
+                <button class="btn btn-sm btn-primary" id="btn-mark-resolved-chat" onclick="app.markItemResolvedFromChat()">
+                  ✓ Marcar como Devolvido
+                </button>
+              </div>
+            </div>
+
+            <!-- CABEÇALHO DA PESSOA NO CHAT -->
+            <div class="chat-person-header">
+              <div class="person-details">
+                <div class="avatar-circle-sm" id="chat-active-avatar">MS</div>
+                <div>
+                  <div class="name-row">
+                    <strong id="chat-active-name">Mariana Silva</strong>
+                    <span class="verified-check" title="Usuário Verificado">✓</span>
+                  </div>
+                  <span class="user-status-text" id="chat-active-status">
+                    <span class="status-dot green"></span> Online agora
+                  </span>
+                </div>
+              </div>
+
+              <div class="chat-header-actions">
+                <button class="btn-icon-soft" title="Informações de Segurança" onclick="app.showSafetyModal()">
+                  <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- BARRA DE AVISO DE SEGURANÇA DO CHAT -->
+            <div class="chat-safety-banner">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+              <span><strong>Dica de Segurança:</strong> Combine a entrega em um local público monitorado, como a Biblioteca Mário de Andrade ou uma estação de metrô.</span>
+            </div>
+
+            <!-- FLUXO DE MENSAGENS DO CHAT -->
+            <div class="chat-messages-stream" id="chat-messages-stream">
+              <!-- Populated via JS -->
+            </div>
+
+            <!-- INDICADOR DE DIGITAÇÃO -->
+            <div class="typing-indicator" id="chat-typing-indicator" style="display: none;">
+              <span id="typing-author">Mariana</span> está digitando
+              <span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>
+            </div>
+
+            <!-- PÍLULAS DE SUGESTÕES RÁPIDAS -->
+            <div class="quick-replies-row">
+              <button class="quick-reply-pill" onclick="app.sendQuickReply('Podemos combinar a entrega na Biblioteca Mário de Andrade?')">Biblioteca Mário de Andrade</button>
+              <button class="quick-reply-pill" onclick="app.sendQuickReply('Você está livre por volta das 17h?')">Combinar horário</button>
+              <button class="quick-reply-pill" onclick="app.sendQuickReply('Pode confirmar a cor exata do objeto?')">Detalhes</button>
+              <button class="quick-reply-pill" onclick="app.sendQuickReply('Perfeito, muito obrigado pela atenção!')">Agradecer</button>
+            </div>
+
+            <!-- RODAPÉ DE ENTRADA DO CHAT -->
+            <div class="chat-input-bar">
+              <button class="chat-attach-btn" title="Anexar foto" onclick="app.simulateAttachPhoto()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+              </button>
+              
+              <input type="text" id="chat-input-field" placeholder="Escreva sua mensagem aqui..." onkeydown="app.handleChatKeyDown(event)" />
+              
+              <button class="btn btn-primary btn-send-message" id="btn-send-chat" onclick="app.sendChatMessage()">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"/></svg>
+                Enviar
+              </button>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- VISÃO 6: PAINEL DE MEUS ITENS (TELA 7 DO FIGMA) -->
+    <!-- ============================================== -->
+    <section class="view-section" id="view-my-items">
+      <div class="container my-items-container">
+        
+        <div class="page-header-row">
+          <div>
+            <div class="breadcrumbs">
+              <a href="#" onclick="app.navigateTo('home')">Início</a> &rsaquo; <span>Painel de Gestão</span>
+            </div>
+            <h1 class="page-title">Meus Itens Cadastrados</h1>
+            <p class="page-desc">Gerencie anúncios ativos, atualize status de devolução e acompanhe o histórico.</p>
+          </div>
+
+          <button class="btn btn-primary" onclick="app.navigateTo('create-item')">
+            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+            + Cadastrar Novo Item
+          </button>
+        </div>
+
+        <!-- 4 Cartões de Estatísticas Resumidas (correspondente à Tela 7 do Figma) -->
+        <div class="dashboard-stats-grid">
+          <div class="dash-stat-card">
+            <div class="dash-stat-icon teal">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"/></svg>
+            </div>
+            <div>
+              <span class="dash-stat-number" id="dash-stat-total">8</span>
+              <span class="dash-stat-label">Total de Itens</span>
+            </div>
+          </div>
+
+          <div class="dash-stat-card">
+            <div class="dash-stat-icon green">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+            </div>
+            <div>
+              <span class="dash-stat-number" id="dash-stat-active">5</span>
+              <span class="dash-stat-label">Itens em Aberto</span>
+            </div>
+          </div>
+
+          <div class="dash-stat-card">
+            <div class="dash-stat-icon gold">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+            </div>
+            <div>
+              <span class="dash-stat-number" id="dash-stat-resolved">3</span>
+              <span class="dash-stat-label">Devolvidos com Sucesso</span>
+            </div>
+          </div>
+
+          <div class="dash-stat-card">
+            <div class="dash-stat-icon blue">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7z" clip-rule="evenodd"/></svg>
+            </div>
+            <div>
+              <span class="dash-stat-number" id="dash-stat-messages">4</span>
+              <span class="dash-stat-label">Mensagens Ativas</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cartão de Tabela com Abas de Filtro e Busca (correspondente à Tela 7 do Figma) -->
+        <div class="dashboard-table-card">
+          <div class="table-card-header">
+            <div class="dash-tabs">
+              <button class="dash-tab active" data-filter="all" onclick="app.filterDashboardItems('all')">Todos os Meus Itens</button>
+              <button class="dash-tab" data-filter="found" onclick="app.filterDashboardItems('found')">Meus Achados</button>
+              <button class="dash-tab" data-filter="lost" onclick="app.filterDashboardItems('lost')">Meus Perdidos</button>
+              <button class="dash-tab" data-filter="resolved" onclick="app.filterDashboardItems('resolved')">Devolvidos / Resolvidos</button>
+            </div>
+
+            <div class="dash-search-box">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+              <input type="text" id="dash-search-input" placeholder="Filtrar por nome ou ID..." oninput="app.filterDashboardItems(app.currentDashFilter)" />
+            </div>
+          </div>
+
+          <!-- Tabela de Itens -->
+          <div class="table-responsive">
+            <table class="dash-table">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Tipo</th>
+                  <th>Categoria</th>
+                  <th>Data Registro</th>
+                  <th>Status</th>
+                  <th class="text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="dash-items-tbody">
+                <!-- Preenchido dinamicamente via JS -->
+              </tbody>
+            </table>
+          </div>
+
+          <div class="table-footer-pagination">
+            <span id="dash-table-count">Mostrando <strong>5</strong> itens</span>
+            <div class="pagination-mini">
+              <button class="page-btn disabled">&laquo;</button>
+              <button class="page-btn active">1</button>
+              <button class="page-btn disabled">&raquo;</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- VISÃO 7: PERFIL DO USUÁRIO E REPUTAÇÃO (TELA 8 DO FIGMA) -->
+    <!-- ============================================== -->
+    <section class="view-section" id="view-profile">
+      <div class="container profile-container">
+        
+        <!-- Cartão Banner do Perfil (correspondente ao topo da Tela 8 do Figma) -->
+        <div class="profile-hero-card">
+          <div class="profile-hero-content">
+            <div class="profile-avatar-large">
+              <span id="profile-large-initials"></span>
+              <button class="avatar-edit-badge" title="Alterar foto">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
+              </button>
+            </div>
+            
+            <div class="profile-user-info">
+              <div class="name-badge-row">
+                <h1 class="profile-name" id="profile-name-text"></h1>
+                <span class="verified-badge-pill">
+                  <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                  Membro Verificado
+                </span>
+              </div>
+              <p class="profile-meta" id="profile-meta-text"></p>
+              <p class="profile-bio" id="profile-bio-text"></p>
+            </div>
+
+            <button class="btn btn-outline btn-edit-profile" onclick="app.editProfileModal()">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
+              Editar Perfil
+            </button>
+          </div>
+
+          <!-- Métricas de Reputação (correspondente às pílulas de métricas da Tela 8 do Figma) -->
+          <div class="profile-metrics-strip">
+            <div class="metric-col">
+              <span class="metric-num" id="profile-metric-posted"></span>
+              <span class="metric-txt">Itens Cadastrados</span>
+            </div>
+            <div class="metric-separator"></div>
+            <div class="metric-col">
+              <span class="metric-num text-found" id="profile-metric-returned"></span>
+              <span class="metric-txt">Devolvidos ao Dono</span>
+            </div>
+            <div class="metric-separator"></div>
+            <div class="metric-col">
+              <span class="metric-num" id="profile-metric-rate"></span>
+              <span class="metric-txt">Taxa de Sucesso</span>
+            </div>
+            <div class="metric-separator"></div>
+            <div class="metric-col">
+              <span class="metric-num text-gold" id="profile-metric-points"></span>
+              <span class="metric-txt" id="profile-level-text"></span>
+              <div class="progress-bar-mini">
+                <div class="progress-fill" style="width: 78%;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Histórico de Atividades e Conquistas Recentes -->
+        <div class="profile-grid">
+          
+          <!-- Esquerda: Linha do Tempo de Atividades (correspondente à lista de itens da Tela 8 do Figma) -->
+          <div class="profile-main-card">
+            <div class="card-header-clean">
+              <h3>Histórico de Atividades & Devoluções</h3>
+              <span class="tag-count">Últimas 30 dias</span>
+            </div>
+
+            <div class="activity-timeline" id="profile-activity-timeline">
+              <!-- Preenchido dinamicamente via JS -->
+            </div>
+          </div>
+
+          <!-- Direita: Emblemas e Impacto na Comunidade -->
+          <div class="profile-side-col">
+            
+            <div class="achievements-card">
+              <h3>Emblemas Conquistados</h3>
+              <div class="badges-grid">
+                <div class="achievement-badge" title="Primeira Devolução Concluída">
+                  <span>Bom Samaritano</span>
+                </div>
+                <div class="achievement-badge" title="Mais de 5 itens devolvidos">
+                  <span>Herói do Bairro</span>
+                </div>
+                <div class="achievement-badge" title="Resposta em menos de 10 min">
+                  <span>Ultrarrápido</span>
+                </div>
+                <div class="achievement-badge" title="Identidade Verificada">
+                  <span>100% Confiável</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="notifications-settings-card">
+              <h3>Preferências de Alertas</h3>
+              <label class="custom-switch-row">
+                <span>Notificações de novos itens na minha área</span>
+                <input type="checkbox" checked />
+                <span class="switch-slider"></span>
+              </label>
+              <label class="custom-switch-row">
+                <span>Receber avisos no WhatsApp</span>
+                <input type="checkbox" checked />
+                <span class="switch-slider"></span>
+              </label>
+              <label class="custom-switch-row">
+                <span>Alertas sonoros no chat</span>
+                <input type="checkbox" checked />
+                <span class="switch-slider"></span>
+              </label>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============================================== -->
+  <!-- MODALS & OVERLAYS -->
+  <!-- ============================================== -->
+
+  <!-- MODAL DE AUTENTICAÇÃO (LOGIN / CADASTRO - TELA 1 DO FIGMA) -->
+  <div class="modal-backdrop" id="modal-auth">
+    <div class="auth-modal-card">
+      <button class="modal-close-btn" onclick="app.closeAuthModal()">&times;</button>
+      
+      <!-- Coluna Esquerda: Marca (correspondente à Tela 1 do Figma) -->
+      <div class="auth-card-left">
+        <div class="auth-brand-logo">
+          <svg viewBox="0 0 32 32" fill="none" class="auth-brand-svg">
+            <rect width="32" height="32" rx="9" fill="white" />
+            <circle cx="14" cy="14" r="6.5" stroke="#0d8a74" stroke-width="2.5" />
+            <path d="M19 19L25 25" stroke="#0d8a74" stroke-width="2.5" stroke-linecap="round" />
+            <circle cx="14" cy="14" r="2.5" fill="#10b981" />
+          </svg>
+          <span class="auth-brand-title">EncontraAÍ</span>
+        </div>
+
+        <div class="auth-illustration-center">
+          <div class="glass-icon-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              <path d="M11 8v6"></path>
+              <path d="M8 11h6"></path>
+            </svg>
+          </div>
+          <h3>Perdeu ou encontrou algo?</h3>
+          <p>Conecte-se com segurança para recuperar seus pertences ou devolver ao verdadeiro dono.</p>
+        </div>
+      </div>
+
+      <!-- Coluna Direita: Formulário de Login / Cadastro (correspondente à Tela 1 do Figma) -->
+      <div class="auth-card-right">
+        <div class="auth-tabs">
+          <button class="auth-tab active" id="tab-auth-login" onclick="app.switchAuthTab('login')">Entrar</button>
+          <button class="auth-tab" id="tab-auth-register" onclick="app.switchAuthTab('register')">Cadastrar-se</button>
+        </div>
+
+        <div class="auth-form-body">
+          <h2 class="auth-heading" id="auth-heading-text">Boas-vindas de volta!</h2>
+          <p class="auth-sub" id="auth-sub-text">Acesse sua conta para gerenciar itens ou conversar.</p>
+
+          <form id="auth-form" onsubmit="app.handleAuthSubmit(event)">
+            <!-- Campo de Nome no Cadastro -->
+            <div class="form-group" id="group-auth-name" style="display: none;">
+              <label class="form-label">Nome Completo</label>
+              <input type="text" id="auth-input-name" class="form-control" placeholder="Seu nome completo" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">E-mail</label>
+              <input type="email" id="auth-input-email" class="form-control" placeholder="exemplo@email.com" required />
+            </div>
+
+            <div class="form-group">
+              <div class="label-with-link">
+                <label class="form-label">Senha</label>
+                <a href="#" class="form-link" onclick="app.showToast('Link de recuperação enviado para o e-mail!', 'info')">Esqueceu a senha?</a>
+              </div>
+              <input type="password" id="auth-input-password" class="form-control" placeholder="••••••••" value="senha123" required />
+            </div>
+
+            <div class="form-group-checkbox" id="group-auth-remember">
+              <label class="custom-checkbox">
+                <input type="checkbox" checked />
+                <span class="checkmark"></span>
+                <span class="chk-label">Lembrar de mim neste dispositivo</span>
+              </label>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block btn-lg" id="btn-auth-submit">
+              Entrar na Conta
+            </button>
+          </form>
+
+          <div class="auth-divider">
+            <span>ou continue com</span>
+          </div>
+
+          <div class="auth-social-buttons">
+            <button class="btn-social" onclick="app.simulateSocialLogin('Google')">
+              <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.34 24 12 24z"/><path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/></svg>
+              Google
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE VALIDAÇÃO DE SEGURANÇA (Reivindicação de Item) -->
+  <div class="modal-backdrop" id="modal-claim-item">
+    <div class="claim-modal-card">
+      <button class="modal-close-btn" onclick="app.closeClaimModal()">&times;</button>
+      
+      <div class="claim-modal-header">
+        <div>
+          <h3>Reivindicar Pertence</h3>
+          <p>Comprove que você é o proprietário legítimo deste objeto.</p>
+        </div>
+      </div>
+
+      <div class="claim-modal-body">
+        <div class="claim-item-summary" id="claim-item-summary">
+          <!-- Populated via JS -->
+        </div>
+
+        <div class="claim-question-box">
+          <span class="q-label">Pergunta de validação cadastrada:</span>
+          <p class="q-text" id="claim-question-text">"O que tem dentro do bolso menor frontal?"</p>
+        </div>
+
+        <form id="claim-form" onsubmit="app.handleClaimSubmit(event)">
+          <div class="form-group">
+            <label class="form-label" for="claim-input-answer">
+              Sua resposta detalhada: <span class="required">*</span>
+            </label>
+            <textarea id="claim-input-answer" class="form-control" rows="3" placeholder="Descreva os itens exatos, marcas específicas ou sinais particulares..." required></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="claim-input-contact">
+              Seu contato para combinar a devolução:
+            </label>
+            <input type="text" id="claim-input-contact" class="form-control" placeholder="E-mail ou WhatsApp" required />
+          </div>
+
+          <div class="modal-actions-row">
+            <button type="button" class="btn btn-secondary" onclick="app.closeClaimModal()">Cancelar</button>
+            <button type="submit" class="btn btn-primary" id="btn-submit-claim">
+              Enviar Validação & Iniciar Chat
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE CRIAÇÃO DE ALERTA -->
+  <div class="modal-backdrop" id="modal-create-alert">
+    <div class="alert-modal-card">
+      <button class="modal-close-btn" onclick="app.closeCreateAlertModal()">&times;</button>
+      <div class="claim-modal-header">
+        <div>
+          <h3>Criar Alerta de Pertence Perdido</h3>
+          <p>Avisaremos imediatamente quando alguém cadastrar algo compatível.</p>
+        </div>
+      </div>
+      <div class="claim-modal-body">
+        <form onsubmit="app.handleAlertSubmit(event)">
+          <div class="form-group">
+            <label class="form-label">O que você está procurando?</label>
+            <input type="text" id="alert-query" class="form-control" placeholder="Ex: Chaveiro com chave de carro e token" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Categoria</label>
+            <select id="alert-category" class="form-select">
+              <option value="chaves">Chaves & Crachás</option>
+              <option value="eletronicos">Eletrônicos & Fones</option>
+              <option value="mochilas">Mochilas & Bolsas</option>
+              <option value="documentos">Documentos</option>
+              <option value="garrafas">Garrafas & Copos</option>
+              <option value="outros">Outros</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">E-mail para Notificação</label>
+            <input type="email" id="alert-input-email" class="form-control" required />
+          </div>
+          <div class="modal-actions-row">
+            <button type="button" class="btn btn-secondary" onclick="app.closeCreateAlertModal()">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Ativar Alerta</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE EDIÇÃO DE PERFIL -->
+  <div class="modal-backdrop" id="modal-edit-profile">
+    <div class="claim-modal-card">
+      <button class="modal-close-btn" onclick="app.closeEditProfileModal()">&times;</button>
+      <div class="claim-modal-header">
+        <div>
+          <h3>Editar Meu Perfil</h3>
+          <p>Seu nome aparece em todos os anúncios que você publica.</p>
+        </div>
+      </div>
+      <div class="claim-modal-body">
+        <form onsubmit="app.handleEditProfileSubmit(event)">
+          <div class="form-group">
+            <label class="form-label" for="edit-profile-name">Nome Completo <span class="required">*</span></label>
+            <input type="text" id="edit-profile-name" class="form-control" placeholder="Como você quer ser chamado" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="edit-profile-email">E-mail</label>
+            <input type="email" id="edit-profile-email" class="form-control" placeholder="voce@email.com" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="edit-profile-role">Bairro</label>
+            <input type="text" id="edit-profile-role" class="form-control" placeholder="Ex: Morador de Pinheiros" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="edit-profile-bio">Sobre você</label>
+            <textarea id="edit-profile-bio" class="form-control" rows="3" placeholder="Fale um pouco sobre você para a comunidade"></textarea>
+          </div>
+          <div class="modal-actions-row">
+            <button type="button" class="btn btn-secondary" onclick="app.closeEditProfileModal()">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE EDIÇÃO DE ITEM -->
+  <div class="modal-backdrop" id="modal-edit-item">
+    <div class="claim-modal-card">
+      <button class="modal-close-btn" onclick="app.closeEditModal()">&times;</button>
+      <div class="claim-modal-header">
+        <div>
+          <h3>Editar Informações do Anúncio</h3>
+          <p>Atualize a descrição, local ou status do seu item.</p>
+        </div>
+      </div>
+      <div class="claim-modal-body">
+        <form onsubmit="app.handleEditItemSubmit(event)">
+          <input type="hidden" id="edit-item-id" />
+          <div class="form-group">
+            <label class="form-label">Título</label>
+            <input type="text" id="edit-item-title" class="form-control" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Localização</label>
+            <input type="text" id="edit-item-location" class="form-control" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Status do Item</label>
+            <select id="edit-item-status" class="form-select">
+              <option value="active">Em Aberto (Ativo)</option>
+              <option value="in_progress">Em Negociação</option>
+              <option value="resolved">Devolvido ao Dono (Resolvido)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Descrição</label>
+            <textarea id="edit-item-desc" class="form-control" rows="3" required></textarea>
+          </div>
+          <div class="modal-actions-row">
+            <button type="button" class="btn btn-secondary" onclick="app.closeEditModal()">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTÊINER DE NOTIFICAÇÃO TOAST -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Footer -->
+  <footer class="main-footer">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <div class="brand-area footer-brand-area" onclick="app.navigateTo('home')">
+          <div class="brand-icon">
+            <svg viewBox="0 0 32 32" fill="none">
+              <rect width="32" height="32" rx="9" fill="#0d8a74" />
+              <circle cx="14" cy="14" r="6.5" stroke="white" stroke-width="2.5" />
+              <path d="M19 19L25 25" stroke="white" stroke-width="2.5" stroke-linecap="round" />
+            </svg>
+          </div>
+          <div class="brand-name">
+            <span class="brand-main text-white">Encontra<span class="brand-accent">AÍ</span></span>
+          </div>
+        </div>
+        <p class="footer-desc">
+          O sistema inteligente e colaborativo de achados e perdidos de São Paulo. Conectando quem perdeu a quem encontrou com segurança.
+        </p>
+      </div>
+
+      <div class="footer-links-col">
+        <h4>Navegação</h4>
+        <ul>
+          <li><a href="#" onclick="app.navigateTo('home')">Página Inicial</a></li>
+          <li><a href="#" onclick="app.navigateTo('feed')">Buscar Pertences</a></li>
+          <li><a href="#" onclick="app.navigateTo('create-item')">Cadastrar Achado ou Perdido</a></li>
+          <li><a href="#" onclick="app.navigateTo('my-items')">Painel de Gestão</a></li>
+          <li><a href="#" onclick="app.navigateTo('messages')">Mensagens & Chat</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-links-col">
+        <h4>Segurança & Apoio</h4>
+        <ul>
+          <li><a href="#how-it-works" onclick="app.navigateTo('home')">Como Funciona</a></li>
+          <li><a href="#" onclick="app.showSafetyModal()">Pontos de Retirada Seguros</a></li>
+          <li><a href="#" onclick="app.showToast('Regras de conduta: respeito mútuo e honestidade na comunidade.', 'info')">Código de Conduta</a></li>
+          <li><a href="#" onclick="app.showToast('Suporte da equipe: suporte@encontraai.com.br', 'info')">Central de Ajuda</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-links-col">
+        <h4>Pontos de Encontro Sugeridos</h4>
+        <div class="meeting-points-box">
+          <p><strong>Biblioteca Mário de Andrade</strong><br>Bairro do Sé - balcão de atendimento térreo<br>Seg - Sex: 07h30 às 22h00</p>
+          <p><strong>Estação de Metrô</strong><br>Entradas e catracas - qualquer estação<br>Atendimento 24 horas</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <div class="container footer-bottom-flex">
+        <span>&copy; 2026 EncontraAÍ. Todos os direitos reservados.</span>
+        <div class="footer-legal-links">
+          <a href="#" onclick="app.showToast('Termos de Uso vigentes.', 'info')">Termos</a>
+          <a href="#" onclick="app.showToast('Política de Privacidade conforme LGPD.', 'info')">Privacidade</a>
+          <a href="#" onclick="app.showToast('Versão 2.4.0 lançada.', 'info')">v2.4.0</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <!-- ?v=7 evita cache obsoleto após edições. STORAGE_KEYS em scripts/dados.js continua em v6 (versão do formato dos dados, independente do cache). -->
+  <script src="scripts/dados.js?v=7"></script>
+  <script src="scripts/app.js?v=7"></script>
+</body>
+</html>
