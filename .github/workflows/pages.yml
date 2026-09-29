@@ -28,16 +28,20 @@ jobs:
         id: pages
         uses: actions/configure-pages@v5
 
-      # Publicamos só o que o site usa. "rascunho/" e "telas_figma/" são
-      # capturas de tela de trabalho (~7MB) e não devem ir para produção.
+      # Montamos um _site com só o que a aplicação usa. "rascunho/" e
+      # "telas_figma/" são capturas de tela de trabalho (~7MB) e não devem
+      # ir para produção. O passo é separado porque upload-pages-artifact
+      # recebe uma única string de path, e o campo não aceita lista.
+      - name: Montar o site
+        run: |
+          mkdir -p _site
+          cp index.html _site/
+          cp -R estilos scripts recursos _site/
+
       - name: Publicar artefato
         uses: actions/upload-pages-artifact@v3
         with:
-          path: |
-            index.html
-            estilos
-            scripts
-            recursos
+          path: _site
 
       - name: Fazer deploy
         id: deployment
