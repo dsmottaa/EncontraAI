@@ -906,6 +906,8 @@ const app = {
 
     const total = DataService.getUnreadTotal();
     badge.textContent = total > 99 ? '99+' : String(total);
+    badge.title = total > 0 ? `${total} mensagem${total > 1 ? 'ns' : ''} não lida${total > 1 ? 's' : ''}` : '';
+    badge.setAttribute('aria-label', badge.title || 'Nenhuma mensagem não lida');
     badge.style.display = total > 0 ? 'inline-flex' : 'none';
   },
 
