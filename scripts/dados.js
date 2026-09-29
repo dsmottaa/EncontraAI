@@ -374,8 +374,16 @@ const DataService = {
     }
   },
 
+  // O localStorage costuma ter ~5MB. Sem este try/catch, uma foto grande
+  // estoura a cota, o setItem lança QuotaExceededError e o item nunca é
+  // salvo — o chamador não tem como avisar o usuário.
   saveItems(items) {
-    localStorage.setItem(STORAGE_KEYS.ITEMS, JSON.stringify(items));
+    try {
+      localStorage.setItem(STORAGE_KEYS.ITEMS, JSON.stringify(items));
+      return true;
+    } catch {
+      return false;
+    }
   },
 
   getItemById(id) {
@@ -383,11 +391,12 @@ const DataService = {
     return items.find(i => i.id === id);
   },
 
+  // Devolve o item gravado, ou null se a cota estourou — o chamador usa
+  // esse retorno para não anunciar sucesso quando nada foi salvo.
   addItem(newItem) {
     const items = this.getItems();
     items.unshift(newItem);
-    this.saveItems(items);
-    return newItem;
+    return this.saveItems(items) ? newItem : null;
   },
 
   updateItem(updatedItem) {
@@ -395,8 +404,9 @@ const DataService = {
     const idx = items.findIndex(i => i.id === updatedItem.id);
     if (idx !== -1) {
       items[idx] = { ...items[idx], ...updatedItem };
-      this.saveItems(items);
+      return this.saveItems(items);
     }
+    return false;
   },
 
   deleteItem(id) {

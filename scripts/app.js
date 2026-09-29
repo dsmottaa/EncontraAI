@@ -153,8 +153,7 @@ const app = {
     // Data de hoje como padrão no cadastro de item
     const dateInput = document.getElementById('item-date');
     if (dateInput) {
-      const today = new Date().toISOString().split('T')[0];
-      dateInput.value = today;
+      dateInput.value = new Date().toISOString().split('T')[0];
     }
   },
 
@@ -742,13 +741,59 @@ const app = {
     }
   },
 
+  // Guardar o arquivo original em base64 estoura a cota do localStorage em
+  // poucos MB, e o item nunca é salvo. Reduzimos para no máximo 1280px e
+  // JPEG de qualidade 0.72, o que cabe folgadamente em base64.
   processImageFile(file) {
+    if (!file) return;
+
+    if (file.type && !file.type.startsWith('image/')) {
+      this.showToast('Selecione um arquivo de imagem.', 'error');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      this.showToast('A imagem deve ter no máximo 10MB.', 'error');
+      return;
+    }
+
     const reader = new FileReader();
+    reader.onerror = () => this.showToast('Não foi possível ler a imagem.', 'error');
     reader.onload = (event) => {
-      this.setSampleImage(event.target.result);
-      this.showToast('Foto carregada com sucesso!', 'success');
+      this.compressImage(event.target.result)
+        .then(src => {
+          this.setSampleImage(src);
+          this.showToast('Foto carregada com sucesso!', 'success');
+        })
+        .catch(() => this.showToast('Não foi possível processar a imagem.', 'error'));
     };
     reader.readAsDataURL(file);
+  },
+
+  // Redimensiona via canvas e reexporta em JPEG. Se o navegador não suportar
+  // canvas (ou a imagem vier de um sample já otimizado), devolve o original.
+  compressImage(dataUrl) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onerror = () => resolve(dataUrl);
+      img.onload = () => {
+        const maxSide = 1280;
+        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', 0.72));
+        } catch {
+          resolve(dataUrl);
+        }
+      };
+      img.src = dataUrl;
+    });
   },
 
   setSampleImage(src) {
@@ -772,8 +817,10 @@ const app = {
   handleLocationPresetChange() {
     const preset = document.getElementById('item-location-preset').value;
     const detail = document.getElementById('item-location-detail');
-    if (detail && !detail.value && preset) {
-      detail.placeholder = `Ex: ${preset} - ponto de referência`;
+    if (detail) {
+      detail.placeholder = preset
+        ? `Ex: ${preset} - ponto de referência`
+        : 'Ex: prunedão, 2º andar, perto da janela - bairro do Sé';
     }
   },
 
@@ -803,7 +850,9 @@ const app = {
       title,
       type,
       category,
-      location,
+      // Componho o detalhe no location: a tabela de "Meus Itens" mostra só
+      // este campo, então guardar o preset sozinho exibia um endereço incompleto.
+      location: [location, locationDetail].filter(Boolean).join(' - '),
       locationDetail,
       date,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -826,23 +875,46 @@ const app = {
       isMyItem: true
     };
 
-    DataService.addItem(newItem);
+    // addItem devolve null quando a cota do localStorage estoura. Resetar o
+    // form nesse caso perderia tudo que o usuário preencheu sem aviso.
+    if (!DataService.addItem(newItem)) {
+      this.showToast('Não foi possível salvar: espaço de armazenamento cheio. Tente uma foto menor.', 'error');
+      return;
+    }
 
     // Atualiza as estatísticas do perfil
     profile.stats.posted += 1;
     profile.timeline.unshift({
       title: `${type === 'found' ? 'Novo achado' : 'Item perdido'} anunciado: ${title}`,
-      desc: `Registrado em ${location}`,
+      desc: `Registrado em ${newItem.location}`,
       date: 'Agora mesmo'
     });
     DataService.saveProfile(profile);
 
     this.showToast('Anúncio publicado com sucesso no EncontraAÍ!', 'success');
-    e.target.reset();
-    this.clearUploadedImage();
+    this.resetCreateItemForm(e.target);
 
     // Abre o detalhe do item criado
     this.openItemDetail(newItem.id);
+  },
+
+  // Devolve o formulário ao estado inicial de forma coerente. Um e.target.reset()
+  // sozinho não serve: ele devolve o radio para "found" mas mantém o destaque
+  // visual em "lost", deixa o card de pergunta de segurança oculto e esvazia a
+  // data, que só recebia o default de "hoje" uma única vez no bindEvents.
+  resetCreateItemForm(form) {
+    if (form) form.reset();
+
+    this.setCreateItemType('found');
+    this.clearUploadedImage();
+
+    const dateInput = document.getElementById('item-date');
+    if (dateInput) {
+      dateInput.value = new Date().toISOString().split('T')[0];
+    }
+
+    const detail = document.getElementById('item-location-detail');
+    if (detail) detail.placeholder = 'Ex: prunedão, 2º andar, perto da janela - bairro do Sé';
   },
 
   // ==========================================================================
@@ -1426,8 +1498,11 @@ const app = {
     const item = DataService.getItemById(itemId);
     if (!item) return;
 
-    item.status = item.status === 'resolved' ? 'active' : 'resolved';
-    DataService.updateItem(item);
+    const nextStatus = item.status === 'resolved' ? 'active' : 'resolved';
+    if (!DataService.updateItem({ id: itemId, status: nextStatus })) {
+      this.showToast('Não foi possível salvar: espaço de armazenamento cheio.', 'error');
+      return;
+    }
     this.renderDashboard();
     this.showToast(`Status do item ${item.id} atualizado com sucesso.`, 'success');
   },
@@ -1465,7 +1540,10 @@ const app = {
     const status = document.getElementById('edit-item-status').value;
     const description = document.getElementById('edit-item-desc').value.trim();
 
-    DataService.updateItem({ id, title, location, status, description });
+    if (!DataService.updateItem({ id, title, location, status, description })) {
+      this.showToast('Não foi possível salvar: espaço de armazenamento cheio.', 'error');
+      return;
+    }
     this.closeEditModal();
     this.renderDashboard();
     this.showToast('Informações do item atualizadas!', 'success');

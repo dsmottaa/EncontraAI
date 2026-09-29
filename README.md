@@ -17,6 +17,19 @@ python -m http.server 3000
 
 Depois abra <http://localhost:3000>.
 
+## Produção
+
+Site publicado no GitHub Pages:
+<https://dsmottaa.github.io/EncontraAI/>
+
+O deploy é feito pelo workflow `.github/workflows/pages.yml`, que sobe a raiz do
+repositório a cada push em `main`. Não há build: `index.html`, `estilos/`,
+`scripts/` e `recursos/` já são o site. Os caminhos são todos relativos, então
+funciona sob o subdiretório `/EncontraAI/` sem ajuste.
+
+Increase o `?v=` de `estilos/estilo.css` no `index.html` ao mexer no CSS, senão
+o navegador continua servindo a folha antiga do cache.
+
 ## Funcionalidades
 
 - **Início** — busca por palavra-chave, filtro por categoria e itens recentes.
