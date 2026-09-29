@@ -425,29 +425,40 @@ const DataService = {
     const raw = localStorage.getItem(STORAGE_KEYS.CONVERSATIONS);
     if (!raw) {
       this.saveConversations(INITIAL_CONVERSATIONS);
-      return INITIAL_CONVERSATIONS;
+      return this.clone(INITIAL_CONVERSATIONS);
     }
     try {
       return JSON.parse(raw);
     } catch {
-      return INITIAL_CONVERSATIONS;
+      return this.clone(INITIAL_CONVERSATIONS);
     }
   },
 
+  // Mesma proteção de saveItems: o localStorage tem cota (~5MB) e as fotos
+  // em base64 dos anúncios a esgotam rápido. Sem try/catch, o setItem lança
+  // QuotaExceededError e o chat inteiro quebra no meio de uma troca de
+  // conversa ou de um envio de mensagem.
   saveConversations(convs) {
-    localStorage.setItem(STORAGE_KEYS.CONVERSATIONS, JSON.stringify(convs));
+    try {
+      localStorage.setItem(STORAGE_KEYS.CONVERSATIONS, JSON.stringify(convs));
+      return true;
+    } catch {
+      return false;
+    }
   },
 
   // Aplica a mutação no array já em mãos e grava.
   // getConversations() devolve um JSON.parse novo a cada chamada, então mutar
   // um objeto e depois salvar um novo parse descarta a alteração silenciosamente.
+  // Devolve null quando nada foi persistido (cota estourada) para o chamador
+  // não anunciar uma mensagem como enviada quando ela se perdeu.
   updateConversation(convId, mutator) {
     const convs = this.getConversations();
     const conv = convs.find(c => c.id === convId);
     if (!conv) return null;
 
     mutator(conv);
-    this.saveConversations(convs);
+    if (!this.saveConversations(convs)) return null;
     return conv;
   },
 

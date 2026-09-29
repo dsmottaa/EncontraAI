@@ -2895,12 +2895,19 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  /* Sem quebra, os botões à direita eram cortados pelo overflow:hidden do
+     board em tela estreita. */
+  flex-wrap: wrap;
 }
 
+/* min-width: 0 é obrigatório num flex child que contém texto longo: sem ele
+   o item não encolhe abaixo do conteúdo e o pai transborda. */
 .item-context-info {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
+  flex: 1 1 200px;
 }
 
 .item-context-info img {
@@ -2929,6 +2936,7 @@ body {
   font-size: 0.9rem;
   font-weight: 700;
   color: var(--text-main);
+  overflow-wrap: anywhere;
 }
 
 .item-context-location {
@@ -2941,6 +2949,7 @@ body {
 .item-context-actions {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 /* Cabeçalho da Pessoa */
@@ -3096,6 +3105,9 @@ body {
   line-height: 1.45;
   box-shadow: var(--shadow-sm);
   position: relative;
+  /* Endereço ou link colado na conversa estourava o balão sem isto. */
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .inbound .chat-bubble {
@@ -4373,6 +4385,46 @@ body {
 }
 
 /* ==========================================================================
+   UTILITÁRIOS
+   ========================================================================== */
+/* Input de arquivo acessível mas invisível. Não substitui display:none:
+   no iOS, um input com display:none simplesmente não abre quando acionado
+   por script, e o usuário não recebe nenhum aviso. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Escolha da origem da foto no cadastro de item */
+.photo-source-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.photo-source-actions .btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+}
+
+.photo-source-actions .btn svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
    RESPONSIVE MEDIA QUERIES
    ========================================================================== */
 @media (max-width: 1024px) {
@@ -4446,17 +4498,122 @@ body {
   .auth-card-left {
     display: none;
   }
+  .messages-container {
+    /* O chat vira um painel de altura total abaixo do header. Sem altura
+       definida, .chat-messages-stream (flex:1 + overflow-y:auto) nunca rolava:
+       o flex resolvia para a altura do conteúdo e a mensagem recém-enviada
+       ficava abaixo da dobra. O vh primeiro cobre navegadores sem dvh. */
+    height: calc(100vh - var(--header-h));
+    height: calc(100dvh - var(--header-h));
+    padding: 0;
+  }
   .messages-board {
     grid-template-columns: 1fr;
-    height: auto;
+    height: 100%;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
   }
   .conversations-sidebar {
-    height: 300px;
+    /* Antes 300px fixos, que comiam um terço da tela de um celular antes do
+       chat começar. */
+    height: 168px;
+    border-right: none;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .conv-sidebar-header {
+    padding: 12px 16px;
+  }
+  .conv-sidebar-header h2 {
+    font-size: 1.05rem;
+  }
+  /* Alvos de toque: o botão de anexar, a info de segurança e as pílulas de
+     resposta rápida ficavam com 27-32px, abaixo do mínimo confortável. */
+  .chat-attach-btn,
+  .btn-icon-soft {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .quick-reply-pill {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 14px;
+  }
+  .chat-item-context-banner {
+    padding: 10px 16px;
+  }
+  .item-context-info {
+    flex: 1 1 100%;
+  }
+  .item-context-actions {
+    width: 100%;
+  }
+  .item-context-actions .btn {
+    flex: 1;
+  }
+  .chat-safety-banner {
+    padding: 10px 16px;
+    font-size: 0.78rem;
+  }
+  .chat-messages-stream {
+    padding: 14px;
+  }
+  /* 92% em vez de 75%: em tela estreita o balão de 75% vira uma tira
+     estreita e quebra palavras longas. */
+  .chat-bubble-row {
+    max-width: 92%;
+  }
+  .chat-input-bar {
+    padding: 10px 12px;
+    /* Fixa no rodapé: sem isto era preciso rolar a página inteira para
+       alcançar o campo de texto. */
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+  }
+  .chat-input-bar input {
+    /* 16px evita o zoom automático do iOS ao focar o campo. */
+    font-size: 16px;
+    padding: 12px 16px;
+  }
+  .btn-send-message {
+    padding: 12px 16px;
   }
   .dashboard-stats-grid {
     grid-template-columns: 1fr 1fr;
   }
   .profile-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Telas muito estreitas (iPhone SE 1ª geração, 320px) */
+@media (max-width: 420px) {
+  .conversations-sidebar {
+    height: 140px;
+  }
+  .item-context-actions {
+    /* Empilhados os dois botões, lado a lado não cabem em 320px. */
+    flex-direction: column;
+  }
+  .quick-replies-row {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .chat-input-bar {
+    gap: 8px;
+    padding: 8px 10px;
+  }
+  .btn-send-message {
+    /* Rótulo some no lugar; o ícone de papel airplanes continua. */
+    font-size: 0;
+    padding: 12px;
+  }
+  .photo-source-actions {
+    flex-direction: column;
   }
 }

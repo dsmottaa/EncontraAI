@@ -6,15 +6,15 @@
 const app = {
   currentView: 'home',
   selectedItemId: null,
-  activeConversationId: 'conv-1',
+  activeConversationId: null,
   homeFilter: 'all',
   feedTypeFilter: 'all',
   currentDashFilter: 'all',
   uploadedImageSrc: null,
   isLoggedIn: true,
-  pendingReplyTimer: null,
-  pendingReplyConvId: null,
-  pendingReplyAuthor: null,
+  // Respostas pendentes indexadas por conversa. Com um único slot global, uma
+  // resposta armada na conversa A era descartada ao enviar na conversa B.
+  pendingReplies: new Map(),
   defaultAvatarBg: '#0d8a74',
 
   // ==========================================================================
@@ -91,15 +91,22 @@ const app = {
 
     // Verifica o hash da URL para links diretos
     const hash = window.location.hash.replace('#', '');
-    if (hash && ['home', 'feed', 'create-item', 'messages', 'my-items', 'profile'].includes(hash)) {
-      this.navigateTo(hash);
-    } else {
-      this.navigateTo('home');
-    }
+    this.navigateTo(this.isKnownView(hash) ? hash : 'home');
   },
 
   // Ouvintes de Eventos
   bindEvents() {
+    // Botão/gesto de voltar do navegador. navigateTo empilha uma entrada de
+    // histórico por navegação, mas sem este listener o hash mudava e a view
+    // continuava a mesma: no celular a pessoa ficava presa no chat e achava
+    // que o app tinha bugado.
+    window.addEventListener('hashchange', () => {
+      const view = window.location.hash.replace('#', '');
+      if (view && view !== this.currentView && this.isKnownView(view)) {
+        this.applyView(view);
+      }
+    });
+
     // Busca do cabeçalho ao pressionar Enter
     const headerInput = document.getElementById('header-search-input');
     if (headerInput) {
@@ -158,9 +165,27 @@ const app = {
   },
 
   // Sistema de Navegação de Views
+  isKnownView(name) {
+    return ['home', 'feed', 'create-item', 'messages', 'my-items', 'profile'].includes(name);
+  },
+
   navigateTo(viewName) {
+    if (!this.isKnownView(viewName)) viewName = 'home';
+
+    // Não empilha uma entrada de histórico quando já estamos na view: sem
+    // esta checagem, cada ida e volta no histórico exigia vários "voltar".
+    if (window.location.hash.replace('#', '') !== viewName) {
+      window.location.hash = viewName;
+    }
+
+    this.applyView(viewName);
+  },
+
+  // Aplica a view sem mexer no histórico. Fica separado de navigateTo para o
+  // listener de hashchange poder reagir ao botão Voltar sem criar outra
+  // entrada de histórico.
+  applyView(viewName) {
     this.currentView = viewName;
-    window.location.hash = viewName;
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
     // Atualiza a visibilidade das seções
@@ -188,7 +213,9 @@ const app = {
     } else if (viewName === 'my-items') {
       this.renderDashboard();
     } else if (viewName === 'messages') {
-      this.renderConversations();
+      // openConversation já redesenha a lista de conversas (e cobre o caso
+      // sem conversa nenhuma). Chamar renderConversations aqui renderizava a
+      // lista duas vezes, recriando o item sob o dedo da pessoa.
       this.openConversation(this.activeConversationId);
     } else if (viewName === 'profile') {
       this.renderProfile();
@@ -734,8 +761,21 @@ const app = {
     }
   },
 
+  // A câmera do celular só abre direto com capture="environment". Manter dois
+  // inputs separados dá o caminho explícito sem tirar o de escolher da galeria.
+  openPhotoSource(source) {
+    const input = document.getElementById(source === 'camera' ? 'file-input-camera' : 'file-input-gallery');
+    if (input) input.click();
+  },
+
   handleImageFileSelect(e) {
-    const file = e.target.files[0];
+    const input = e.target;
+    const file = input.files && input.files[0];
+
+    // Zerar o value devolve o controle a "nada selecionado". Sem isto,
+    // escolher a mesma foto duas vezes seguidas não dispara o change.
+    input.value = '';
+
     if (file) {
       this.processImageFile(file);
     }
@@ -747,8 +787,16 @@ const app = {
   processImageFile(file) {
     if (!file) return;
 
-    if (file.type && !file.type.startsWith('image/')) {
-      this.showToast('Selecione um arquivo de imagem.', 'error');
+    // "image/*" aceita SVG, que passa pela checagem e depois quebra a galeria
+    // e o preview. HEIC entra porque é o formato nativo do iPhone e o
+    // accept="image/*" do input deixa passar em qualquer iOS moderno.
+    const rasterTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif'];
+    const type = String(file.type || '').toLowerCase();
+    const isRaster = type
+      ? rasterTypes.includes(type)
+      : /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(file.name || '');
+    if (!isRaster) {
+      this.showToast('Selecione uma foto (JPG, PNG, WEBP ou HEIC).', 'error');
       return;
     }
 
@@ -762,6 +810,10 @@ const app = {
     reader.onload = (event) => {
       this.compressImage(event.target.result)
         .then(src => {
+          if (!src) {
+            this.showToast('Este navegador não conseguiu abrir a foto. Salve em JPG e tente de novo.', 'error');
+            return;
+          }
           this.setSampleImage(src);
           this.showToast('Foto carregada com sucesso!', 'success');
         })
@@ -770,12 +822,14 @@ const app = {
     reader.readAsDataURL(file);
   },
 
-  // Redimensiona via canvas e reexporta em JPEG. Se o navegador não suportar
-  // canvas (ou a imagem vier de um sample já otimizado), devolve o original.
+  // Redimensiona via canvas e reexporta em JPEG. Devolve null quando o
+  // navegador não decodifica a imagem (HEIC no Android, por exemplo): antes
+  // devolvia o data URL original, que ia para o localStorage e não aparecia
+  // nem no preview nem no feed — o anúncio ficava com foto quebrada.
   compressImage(dataUrl) {
     return new Promise((resolve) => {
       const img = new Image();
-      img.onerror = () => resolve(dataUrl);
+      img.onerror = () => resolve(null);
       img.onload = () => {
         const maxSide = 1280;
         const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
@@ -789,7 +843,7 @@ const app = {
           canvas.getContext('2d').drawImage(img, 0, 0, w, h);
           resolve(canvas.toDataURL('image/jpeg', 0.72));
         } catch {
-          resolve(dataUrl);
+          resolve(null);
         }
       };
       img.src = dataUrl;
@@ -810,8 +864,10 @@ const app = {
     this.uploadedImageSrc = null;
     const previewArea = document.getElementById('uploaded-previews-area');
     if (previewArea) previewArea.style.display = 'none';
-    const fileInput = document.getElementById('file-input-item');
-    if (fileInput) fileInput.value = '';
+    ['file-input-camera', 'file-input-gallery'].forEach(id => {
+      const input = document.getElementById(id);
+      if (input) input.value = '';
+    });
   },
 
   handleLocationPresetChange() {
@@ -988,48 +1044,92 @@ const app = {
   },
 
   openConversation(convId) {
-    this.activeConversationId = convId;
+    // Busca sem gravar: o painel não pode depender de uma escrita bem-sucedida
+    // no localStorage para abrir. Se o id não existir mais (dados limpos, bump
+    // de schema, conversa removida), caímos na primeira conversa disponível em
+    // vez de abortar e deixar a tela com os dados da conversa anterior.
+    const conversations = DataService.getConversations();
+    const target = conversations.find(c => c.id === convId) || conversations[0] || null;
 
-    // Limpa as não lidas apenas desta conversa (e persistindo de verdade).
-    const conv = DataService.updateConversation(convId, c => { c.unread = 0; });
-    if (!conv) return;
+    if (!target) {
+      this.renderNoConversation();
+      return;
+    }
+
+    this.activeConversationId = target.id;
+
+    // O campo de texto é markup estático e sobrevive à troca de view. Sem isto,
+    // o que a pessoa digitou na conversa A era enviado para a conversa B.
+    const input = document.getElementById('chat-input-field');
+    if (input) input.value = '';
+
+    // Zera as não lidas só quando há algo a zerar. Uma falha de cota não pode
+    // travar o painel: a conversa abre e a não lida volta a aparecer.
+    if (Number(target.unread) || 0) {
+      if (DataService.updateConversation(target.id, c => { c.unread = 0; })) {
+        target.unread = 0;
+      }
+    }
 
     // Não cancela a resposta pendente: ela sempre deve chegar. O timer
     // guarda a própria conversa e só redesenha se ela ainda for a ativa,
     // senão vira não-lida. Só escondemos o indicador quando a conversa
     // pendente é outra, para o nome do contato não vazar para a tela errada.
-    this.syncTypingIndicator(convId);
+    this.syncTypingIndicator(target.id);
     this.renderConversations();
 
     // O local vem do anúncio, não de um texto fixo.
-    const item = conv.itemId ? DataService.getItemById(conv.itemId) : null;
+    const item = target.itemId ? DataService.getItemById(target.itemId) : null;
     const locationParts = [
       item?.location,
       item?.locationDetail
     ].filter(Boolean);
 
-    this.setAttr('chat-banner-item-thumb', 'src', conv.itemImage);
-    this.setText('chat-banner-item-title', conv.itemTitle);
-    this.setText('chat-banner-item-code', conv.itemCode);
+    this.setAttr('chat-banner-item-thumb', 'src', target.itemImage);
+    this.setText('chat-banner-item-title', target.itemTitle);
+    this.setText('chat-banner-item-code', target.itemCode);
     this.setText('chat-banner-item-location', locationParts.length
       ? locationParts.join(' · ')
       : 'Local não informado');
 
     const statusBadge = document.getElementById('chat-banner-status-badge');
     if (statusBadge) {
-      statusBadge.textContent = conv.itemStatus === 'resolved' ? 'DEVOLVIDO' : 'EM ANDAMENTO';
-      statusBadge.className = `badge-status ${conv.itemStatus === 'resolved' ? 'badge-resolved' : 'badge-found'}`;
+      statusBadge.textContent = target.itemStatus === 'resolved' ? 'DEVOLVIDO' : 'EM ANDAMENTO';
+      statusBadge.className = `badge-status ${target.itemStatus === 'resolved' ? 'badge-resolved' : 'badge-found'}`;
     }
 
-    this.setText('chat-active-name', conv.contact && conv.contact.name);
-    this.setText('chat-active-avatar', conv.contact && conv.contact.initials);
-    this.setStyleBg('chat-active-avatar', this.safeColor(conv.contact && conv.contact.avatarBg));
-    this.setHtml('chat-active-status', conv.contact && conv.contact.online
+    this.setText('chat-active-name', target.contact?.name);
+    this.setText('chat-active-avatar', target.contact?.initials);
+    this.setStyleBg('chat-active-avatar', this.safeColor(target.contact?.avatarBg));
+    this.setHtml('chat-active-status', target.contact?.online
       ? '<span class="status-dot green"></span> Online agora'
       : '<span class="status-dot"></span> Visto recentemente');
 
     // Renderiza os balões de mensagem
-    this.renderChatMessages(conv);
+    this.renderChatMessages(target);
+  },
+
+  // Não há conversa alguma (primeiro uso, storage limpo, tudo removido).
+  // O painel precisa de um estado próprio: sem isso ele ficava mostrando o
+  // HTML fixo do index.html enquanto a lista ao lado já estava vazia.
+  renderNoConversation() {
+    this.activeConversationId = null;
+    this.renderConversations();
+
+    const banner = document.getElementById('chat-item-banner');
+    if (banner) banner.style.display = 'none';
+
+    this.setText('chat-active-name', 'Nenhuma conversa');
+    this.setText('chat-active-avatar', '—');
+    this.setHtml('chat-active-status', 'Selecione ou inicie uma conversa pela lista ao lado.');
+
+    const typing = document.getElementById('chat-typing-indicator');
+    if (typing) typing.style.display = 'none';
+
+    const stream = document.getElementById('chat-messages-stream');
+    if (stream) {
+      stream.innerHTML = '<div class="conv-list-empty"><h3>Nenhuma conversa aberta</h3><p>Encontre um item e toque em "Falar com quem achou" para começar.</p></div>';
+    }
   },
 
   // Sincroniza o indicador de digitação com a resposta pendente.
@@ -1040,9 +1140,10 @@ const app = {
     const indicator = document.getElementById('chat-typing-indicator');
     if (!indicator) return;
 
-    if (this.pendingReplyConvId && this.pendingReplyConvId === convId) {
+    const pending = this.pendingReplies.get(convId);
+    if (pending) {
       const authorEl = document.getElementById('typing-author');
-      if (authorEl) authorEl.textContent = this.pendingReplyAuthor || '';
+      if (authorEl) authorEl.textContent = pending.author || '';
       indicator.style.display = 'block';
     } else {
       indicator.style.display = 'none';
@@ -1064,7 +1165,7 @@ const app = {
 
     stream.innerHTML = conv.messages.map(m => `
       <div class="chat-bubble-row ${m.sender === 'me' ? 'outbound' : 'inbound'}">
-        <div class="bubble-avatar">${m.sender === 'me' ? 'Você' : this.escapeHtml(conv.contact.initials)}</div>
+        <div class="bubble-avatar">${m.sender === 'me' ? 'Você' : this.escapeHtml(conv.contact?.initials)}</div>
         <div class="chat-bubble">
           <p>${this.escapeHtml(m.text)}</p>
           <div class="bubble-time">${this.escapeHtml(m.time)} ${m.sender === 'me' ? '✓✓' : ''}</div>
@@ -1076,28 +1177,34 @@ const app = {
   },
 
   handleChatKeyDown(e) {
+    // Durante a composição de um acento (PT-BR no Windows, GBoard no Android)
+    // o Enter confirma a letra e dispara keydown. Sem esta guarda, a mensagem
+    // era enviada no meio da digitação e o resto da palavra continuava no
+    // campo depois do envio.
+    if (e.isComposing || e.keyCode === 229) return;
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       this.sendChatMessage();
     }
   },
 
-  sendChatMessage() {
+  // forcedText envia um texto pronto sem tocar no que já está digitado. As
+  // pílulas de resposta rápida usavam o campo como rascunho e disparavam esse
+  // rascunho junto: "oi, então " + "Agradecer" saíam como uma mensagem só.
+  sendChatMessage(forcedText) {
     const input = document.getElementById('chat-input-field');
     if (!input) return;
 
-    const text = input.value.trim();
+    const isQuickReply = typeof forcedText === 'string';
+    const text = (isQuickReply ? forcedText : input.value).trim();
     if (!text) return;
 
-    // Procura a conversa ANTES de limpar o input, senão o texto digitado
-    // é perdido sem retorno quando não há conversa ativa.
     const conv = DataService.getConversations().find(c => c.id === this.activeConversationId);
     if (!conv) {
       this.showToast('Selecione uma conversa antes de enviar.', 'error');
       return;
     }
-
-    input.value = '';
 
     const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -1114,6 +1221,16 @@ const app = {
       c.lastTime = time;
     });
 
+    // Só limpa o campo depois que a mensagem está persistida. O inverso
+    // (limpar antes) perdia o texto sem retorno quando a cota do
+    // localStorage estourava: a mensagem sumia da tela e da caixa de texto.
+    if (!updated) {
+      this.showToast('Não foi possível enviar: espaço de armazenamento cheio.', 'error');
+      return;
+    }
+
+    if (!isQuickReply) input.value = '';
+
     this.renderConversations();
     this.renderChatMessages(updated);
 
@@ -1122,13 +1239,7 @@ const app = {
   },
 
   sendQuickReply(text) {
-    const input = document.getElementById('chat-input-field');
-    if (!input) return;
-
-    // Preserva o rascunho em vez de sobrescrever.
-    const draft = input.value.trim();
-    input.value = draft ? `${draft} ${text}` : text;
-    this.sendChatMessage();
+    this.sendChatMessage(text);
   },
 
   // Dicionário de cores usado para responder "qual a cor do objeto?".
@@ -1227,19 +1338,16 @@ const app = {
 
   simulateIncomingReply(conv, text) {
     const convId = conv.id;
-    const author = String(conv.contact.name || '').split(' ')[0];
+    const author = String(conv.contact?.name || '').split(' ')[0];
     const replyText = this.buildReplyFor(conv, text || '');
 
-    // Uma resposta pendente por vez: uma nova mensagem cancela a anterior.
-    this.cancelPendingReplyTimerOnly();
-    this.pendingReplyConvId = convId;
-    this.pendingReplyAuthor = author;
-    this.syncTypingIndicator(convId);
+    // Só cancela a pendência da MESMA conversa. Com um timer único global,
+    // mandar mensagem na conversa B descartava a resposta armada na A, e a A
+    // nunca respondia — sem virar não lida, sem notificação, silenciosamente.
+    this.cancelPendingReply(convId);
 
-    this.pendingReplyTimer = setTimeout(() => {
-      this.pendingReplyTimer = null;
-      this.pendingReplyConvId = null;
-      this.pendingReplyAuthor = null;
+    const timer = setTimeout(() => {
+      this.pendingReplies.delete(convId);
       const typingIndicator = document.getElementById('chat-typing-indicator');
       if (typingIndicator) typingIndicator.style.display = 'none';
 
@@ -1271,25 +1379,22 @@ const app = {
         this.renderChatMessages(updated);
       }
     }, 1300);
+
+    this.pendingReplies.set(convId, { timer, author });
+    this.syncTypingIndicator(convId);
   },
 
-  cancelPendingReplyTimerOnly() {
-    if (this.pendingReplyTimer) {
-      clearTimeout(this.pendingReplyTimer);
-      this.pendingReplyTimer = null;
-    }
-    this.pendingReplyConvId = null;
-    this.pendingReplyAuthor = null;
+  // Cancela a resposta pendente de UMA conversa. As demais seguem intactas.
+  cancelPendingReply(convId) {
+    const pending = this.pendingReplies.get(convId);
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    this.pendingReplies.delete(convId);
   },
 
   simulateAttachPhoto() {
-    const input = document.getElementById('chat-input-field');
-    if (!input) return;
-
-    const draft = input.value.trim();
-    input.value = draft ? `${draft} [Foto anexada do objeto]` : '[Foto anexada do objeto]';
     this.showToast('Foto do pertence anexada à conversa.', 'info');
-    this.sendChatMessage();
+    this.sendChatMessage('[Foto anexada do objeto]');
   },
 
   startChatForItem(itemId) {
@@ -1375,7 +1480,7 @@ const app = {
     profile.stats.points += 50;
     profile.timeline.unshift({
       title: `Item devolvido com sucesso: ${conv.itemTitle}`,
-      desc: `Devolução concluída com ${conv.contact.name}. +50 pontos adicionados!`,
+      desc: `Devolução concluída com ${conv.contact?.name || 'o anunciante'}. +50 pontos adicionados!`,
       date: 'Agora mesmo'
     });
     DataService.saveProfile(profile);
@@ -1552,11 +1657,6 @@ const app = {
   // ==========================================================================
   // VISÃO 7: PERFIL DO USUÁRIO (TELA 8 DO FIGMA)
   // ==========================================================================
-  // Atribuição segura de texto: evita quebrar quando o elemento não existe
-  setText(id, value) {
-    const el = document.getElementById(id);
-    if (el && value !== undefined && value !== null) el.textContent = value;
-  },
 
   // Sincroniza todos os nós que exibem a identidade do usuário a partir do perfil
   renderProfile() {
