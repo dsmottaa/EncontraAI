@@ -2695,15 +2695,25 @@ body {
   border-radius: var(--radius-xl);
   overflow: hidden;
   box-shadow: var(--shadow-lg);
+  /* 720px fixos estouravam a janela em telas baixas (notebook de 768px de
+     altura, celular deitado): o quadro ficava maior que a tela e a barra de
+     entrada era cortada. min() trava nos 720px quando há espaço e recua para
+     a altura da janela quando não há. As três declarações são degrade
+     progressivo: quem não conhece min() ou dvh fica com o 720px. */
   height: 720px;
+  height: min(720px, calc(100vh - var(--header-h) - 40px));
+  height: min(720px, calc(100dvh - var(--header-h) - 40px));
 }
 
 /* Sidebar */
+/* min-height: 0 pelo mesmo motivo do stream de mensagens: sem ele a lista
+   de conversas cresce além da sidebar e some atrás do overflow. */
 .conversations-sidebar {
   border-right: 1px solid var(--border-light);
   background: #ffffff;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 .conv-sidebar-header {
@@ -2745,6 +2755,7 @@ body {
 .conversations-list {
   flex: 1;
   overflow-y: auto;
+  min-height: 0;
 }
 
 /* Estado vazio da lista de conversas e do stream de mensagens */
@@ -2880,10 +2891,25 @@ body {
 }
 
 /* Área da Sala de Chat */
+/* min-height: 0 é obrigatório aqui (e em todo ancestral do stream que rola).
+   O padrão de um item flex é min-height:auto, ou seja, "nunca encolha abaixo
+   do conteúdo". Sem o 0, .chat-messages-stream (flex:1 + overflow-y:auto)
+   ignorava o own overflow, crescia até a altura das mensagens e empurrava a
+   .chat-input-bar para fora do .messages-board, que tem overflow:hidden —
+   resultado: campo de texto e botão de enviar invisíveis e impossíveis de
+   tocar. Vale para a sidebar, que tem o mesmo par flex:1/overflow. */
 .chat-room-area {
   display: flex;
   flex-direction: column;
   background: #ffffff;
+  min-height: 0;
+  /* Rede de segurança final. O cromo fixo da coluna (banner do item, dica de
+     segurança, pílulas e campo de entrada) tem altura própria e, em tela
+     baixa, soma mais do que a sala tem: o campo era empurrado para fora do
+     quadro e sumia. Com a coluna rolável, o excedente vira rolagem em vez de
+     corte — e o campo fica em sticky, então continua ao alcance do dedo
+     mesmo quando isso acontece. */
+  overflow-y: auto;
 }
 
 /* Banner de Contexto do Item no Topo (Tela 6 do Figma) */
@@ -2894,6 +2920,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-shrink: 0;
   gap: 10px;
   /* Sem quebra, os botões à direita eram cortados pelo overflow:hidden do
      board em tela estreita. */
@@ -2959,6 +2986,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-shrink: 0;
 }
 
 .person-details {
@@ -3046,6 +3074,7 @@ body {
   color: #1e40af;
   font-size: 0.775rem;
   padding: 8px 20px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -3058,9 +3087,17 @@ body {
 }
 
 /* Fluxo de Mensagens */
+/* min-height: 0: sem ele este item flex nunca encolhe abaixo do conteúdo, o
+   overflow-y:auto nunca engata e a barra de entrada fica empurrada para fora do
+   quadro. Ver o comentário em .chat-room-area.
+   O piso de 88px é o oposto proposital: com 0 a coluna rolável encolheria o
+   fluxo até nada em tela baixa, e a pessoa teria que rolar a coluna para ler
+   as mensagens. Com o piso, sempre aparece um pedaço de conversa e só o
+   excedente do cromo vira rolagem. */
 .chat-messages-stream {
   flex: 1;
   overflow-y: auto;
+  min-height: 88px;
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -3130,11 +3167,15 @@ body {
   opacity: 0.8;
 }
 
+/* flex-shrink: 0 nos blocos fixos da coluna do chat: sem isso o flex os
+   espreme para tentar caber tudo, e é o indicador de digitação e as pílulas
+   que desaparecem primeiro quando a conversa fica alta. */
 .typing-indicator {
   padding: 4px 20px;
   font-size: 0.78rem;
   color: var(--text-muted);
   font-style: italic;
+  flex-shrink: 0;
 }
 
 .quick-replies-row {
@@ -3144,6 +3185,7 @@ body {
   background: #f8fafc;
   border-top: 1px solid var(--border-subtle);
   overflow-x: auto;
+  flex-shrink: 0;
 }
 
 .quick-reply-pill {
@@ -3167,6 +3209,9 @@ body {
 }
 
 /* Barra de Entrada do Chat */
+/* flex-shrink:0 impede que o campo seja espremido; sticky+bottom gruda ele no
+   rodapé da coluna rolável (.chat-room-area), que é o que garante o campo ao
+   alcance do dedo quando o cromo fixo não cabe na altura da tela. */
 .chat-input-bar {
   display: flex;
   align-items: center;
@@ -3174,6 +3219,10 @@ body {
   padding: 14px 20px;
   border-top: 1px solid var(--border-light);
   background: #ffffff;
+  flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
 }
 
 .chat-attach-btn {
@@ -4499,25 +4548,34 @@ body {
     display: none;
   }
   .messages-container {
-    /* O chat vira um painel de altura total abaixo do header. Sem altura
-       definida, .chat-messages-stream (flex:1 + overflow-y:auto) nunca rolava:
-       o flex resolvia para a altura do conteúdo e a mensagem recém-enviada
-       ficava abaixo da dobra. O vh primeiro cobre navegadores sem dvh. */
+    /* O chat ocupa a tela inteira abaixo do header. A altura definida aqui é
+       o que dá limite para o flex resolver: o stream rola e a barra de
+       entrada fica sempre visível. vh primeiro para quem não tem dvh. */
     height: calc(100vh - var(--header-h));
     height: calc(100dvh - var(--header-h));
     padding: 0;
   }
   .messages-board {
     grid-template-columns: 1fr;
+    /* Linhas explícitas: com as duas implícitas em auto, a altura do conteúdo
+       do chat esticava o quadro e o overflow:hidden cortava a barra de
+       entrada. "auto 1fr" prende a sidebar no topo e devote o resto ao chat.
+       O min-height:0 nos filhos (acima) deixa essa 1fr encolher de verdade. */
+    grid-template-rows: auto 1fr;
     height: 100%;
+    min-height: 0;
     border-radius: 0;
     border-left: none;
     border-right: none;
+  }
+  .messages-board > * {
+    min-height: 0;
   }
   .conversations-sidebar {
     /* Antes 300px fixos, que comiam um terço da tela de um celular antes do
        chat começar. */
     height: 168px;
+    flex-shrink: 0;
     border-right: none;
     border-bottom: 1px solid var(--border-light);
   }
@@ -4569,10 +4627,7 @@ body {
   }
   .chat-input-bar {
     padding: 10px 12px;
-    /* Fixa no rodapé: sem isto era preciso rolar a página inteira para
-       alcançar o campo de texto. */
-    position: sticky;
-    bottom: 0;
+    /* flex-shrink:0 e sticky vêm da regra base. */
     z-index: 10;
   }
   .chat-input-bar input {
@@ -4615,5 +4670,90 @@ body {
   }
   .photo-source-actions {
     flex-direction: column;
+  }
+}
+
+/* ==========================================================================
+   TELA BAIXA (celular deitado, janela curta)
+   O cromo fixo da coluna do chat (banner do item + dica de segurança +
+   pílulas + campo) somava mais que a altura útil: no deitado o banner sozinho
+   media 252px numa sala de 284px e o campo de texto era cortado. Aqui o
+   cromo encolhe para caber, e o que ainda sobrar vira rolagem da coluna
+   (com o campo grudado no rodapé).
+   ========================================================================== */
+@media (max-height: 700px) {
+  .chat-safety-banner {
+    /* 54-58px de dica que se repete a cada conversa. some aqui para o chat
+       respirar; a mesma orientação aparece no banner de contexto do item. */
+    display: none;
+  }
+  .chat-item-context-banner {
+    padding: 8px 12px;
+  }
+  .item-context-title {
+    font-size: 0.82rem;
+  }
+  /* As ações do item (marcar como devolvido, etc.) vão para baixo do título
+     e viram a única linha rolável do banner, em vez de empilharem e
+     multiplicarem a altura.
+     O flex-direction precisa ser redefinido aqui: o bloco de max-width:420px
+     deixa a coluna, e com os dois valendo em 360x640 as ações empilhavam e o
+     banner crescia de 110px para 186px, comendo o fluxo de mensagens. */
+  .item-context-actions {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    width: 100%;
+  }
+  .item-context-actions > * {
+    flex-shrink: 0;
+  }
+  .chat-person-header {
+    padding: 6px 12px;
+  }
+  .quick-replies-row {
+    padding: 6px 12px;
+  }
+  .chat-messages-stream {
+    min-height: 72px;
+  }
+}
+
+/* Tela muito baixa (celular deitado: ~390px). Aqui o cromo fixo ainda não
+   cabia: pílulas e ações do item saem de cena, o status "online" some e o
+   fluxo ganha altura de verdade. Sem isso a barra de entrada grudada cobria
+   as últimas mensagens. */
+@media (max-height: 560px) {
+  .quick-replies-row {
+    display: none;
+  }
+  .item-context-actions {
+    display: none;
+  }
+  /* Endereço do local: a pessoa já leu na conversa e é a linha mais alta do
+     banner. Fica para quando há espaço. */
+  .item-context-location {
+    display: none;
+  }
+  .user-status-text {
+    display: none;
+  }
+  .chat-item-context-banner {
+    padding: 5px 10px;
+  }
+  .chat-person-header {
+    padding: 4px 10px;
+  }
+  .chat-messages-stream {
+    min-height: 80px;
+  }
+  /* Deitado, a sidebar de 320px deixa a sala com ~474px e os balões quebram
+     em tantas linhas que a última mensagem não cabia na altura restante do
+     fluxo. Estreitar a sidebar e usar mais da largura encurta os balões. */
+  .conversations-sidebar {
+    width: 240px;
+  }
+  .chat-bubble-row {
+    max-width: 92%;
   }
 }

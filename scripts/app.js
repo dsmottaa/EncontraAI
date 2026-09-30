@@ -831,7 +831,12 @@ const app = {
       const img = new Image();
       img.onerror = () => resolve(null);
       img.onload = () => {
-        const maxSide = 1280;
+        // 900px/0.68 em vez de 1280px/0.72: corta o base64 de ~180KB para
+        // ~70KB sem perda visível num anúncio de celular, e é exatamente esse
+        // base64 que estoura a cota de ~5MB do localStorage — fewas fotos já
+        // travavam o app. Continua sendo compressão, não reencode do
+        // original: a origem só é reduzida se passar de maxSide.
+        const maxSide = 900;
         const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
         const w = Math.max(1, Math.round(img.width * scale));
         const h = Math.max(1, Math.round(img.height * scale));
@@ -841,7 +846,7 @@ const app = {
           canvas.width = w;
           canvas.height = h;
           canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-          resolve(canvas.toDataURL('image/jpeg', 0.72));
+          resolve(canvas.toDataURL('image/jpeg', 0.68));
         } catch {
           resolve(null);
         }
@@ -1150,6 +1155,23 @@ const app = {
     }
   },
 
+  // Ancora o fluxo na última mensagem. O segundo passo no próximo quadro não
+  // é redundância: definir innerHTML e medir logo em seguida usa a altura
+  // antes de a página assentar (fonte do Google carregando, miniatura do item
+  // decodificando, balão quebrando linha). Medindo uma vez só, o scroll ficava
+  // ~27px curto do fim e a mensagem recém-enviada aparecia cortada — em tela
+  // baixa, onde o fluxo tem poucas dezenas de pixels, isso a escondia de vez.
+  // Instantâneo, sem animação: num chat, ver a conversa deslizar a cada
+  // mensagem é pior do que ancorar de uma vez.
+  scrollStreamToBottom() {
+    const stream = document.getElementById('chat-messages-stream');
+    if (!stream) return;
+    stream.scrollTop = stream.scrollHeight;
+    requestAnimationFrame(() => {
+      stream.scrollTop = stream.scrollHeight;
+    });
+  },
+
   renderChatMessages(conv) {
     const stream = document.getElementById('chat-messages-stream');
     if (!stream) return;
@@ -1160,6 +1182,7 @@ const app = {
           <h3>Nenhuma mensagem ainda</h3>
           <p>Escreva a primeira mensagem abaixo para iniciar a negociação.</p>
         </div>`;
+      this.scrollStreamToBottom();
       return;
     }
 
@@ -1173,7 +1196,7 @@ const app = {
       </div>
     `).join('');
 
-    stream.scrollTop = stream.scrollHeight;
+    this.scrollStreamToBottom();
   },
 
   handleChatKeyDown(e) {
@@ -1207,35 +1230,45 @@ const app = {
     }
 
     const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const sent = { id: 'm-' + Date.now(), sender: 'me', text, time };
 
     // O retorno é o objeto realmente mutado. Renderizar `conv` (que vem de
     // outro getConversations) fazia a mensagem não aparecer na tela.
     const updated = DataService.updateConversation(conv.id, c => {
-      c.messages.push({
-        id: 'm-' + Date.now(),
-        sender: 'me',
-        text,
-        time
-      });
+      c.messages.push(sent);
       c.lastMessage = text;
       c.lastTime = time;
     });
 
-    // Só limpa o campo depois que a mensagem está persistida. O inverso
-    // (limpar antes) perdia o texto sem retorno quando a cota do
-    // localStorage estourava: a mensagem sumia da tela e da caixa de texto.
-    if (!updated) {
-      this.showToast('Não foi possível enviar: espaço de armazenamento cheio.', 'error');
-      return;
+    // Cota estourada NÃO pode barrar o envio. Recusar a mensagem aqui deixava
+    // o chat morto para sempre: o localStorage cheio é permanente (nada é
+    // removido), então toda tentativa futura era negada do mesmo jeito e o
+    // campo continuava cheio, sem volta. Mandar e avisar é melhor que um
+    // chat que não aceita mais nada.
+    //
+    // updateConversation já aplicou a mutação, mas numa cópia descartada.
+    // `conv` é a única cópia que sobrou, então é nela que a mensagem entra
+    // para a tela mostrar o que a pessoa escreveu.
+    let shown = updated;
+    if (!shown) {
+      conv.messages.push(sent);
+      conv.lastMessage = text;
+      conv.lastTime = time;
+      shown = conv;
     }
 
     if (!isQuickReply) input.value = '';
 
     this.renderConversations();
-    this.renderChatMessages(updated);
+    this.renderChatMessages(shown);
+
+    if (!updated) {
+      this.showToast('Mensagem na tela, mas o armazenamento está cheio: apague um item antigo para ela não sumir ao recarregar.', 'error');
+      return;
+    }
 
     // Simulador de Respostas Amigáveis do Bot
-    this.simulateIncomingReply(updated, text);
+    this.simulateIncomingReply(shown, text);
   },
 
   sendQuickReply(text) {
@@ -1356,13 +1389,9 @@ const app = {
       // updateConversation aplica a mutação no array já em mãos, então a
       // resposta realmente é persistida (antes saveConversations(getConversations())
       // descartava a alteração e a mensagem sumia ao reabrir a conversa).
+      const reply = { id: 'm-reply-' + Date.now(), sender: 'them', text: replyText, time };
       const updated = DataService.updateConversation(convId, c => {
-        c.messages.push({
-          id: 'm-reply-' + Date.now(),
-          sender: 'them',
-          text: replyText,
-          time
-        });
+        c.messages.push(reply);
         c.lastMessage = replyText;
         c.lastTime = time;
         // Só conta como não lida se o usuário estiver olhando outra conversa.
@@ -1371,12 +1400,23 @@ const app = {
         }
       });
 
+      // Mesma razão do envio: com a cota estourada a resposta não grava, mas
+      // ela ainda precisa aparecer. Sem isto o indicador "está digitando"
+      // sumia e nada chegava, e o chat parecia travado.
+      let shown = updated;
+      if (!shown) {
+        conv.messages.push(reply);
+        conv.lastMessage = replyText;
+        conv.lastTime = time;
+        shown = conv;
+      }
+
       // Se o usuário trocou de conversa, renderConversations() atualiza o
       // contador e nada mais: não pode redesenhar o stream de outra conversa.
       this.renderConversations();
 
-      if (updated && updated.id === this.activeConversationId) {
-        this.renderChatMessages(updated);
+      if (shown.id === this.activeConversationId) {
+        this.renderChatMessages(shown);
       }
     }, 1300);
 
