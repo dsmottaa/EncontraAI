@@ -12,9 +12,10 @@ const app = {
   currentDashFilter: 'all',
   uploadedImageSrc: null,
   isLoggedIn: true,
-  pendingReplyTimer: null,
-  pendingReplyConvId: null,
-  pendingReplyAuthor: null,
+  // Uma resposta pendente POR CONVERSA. Com um timer único global, mandar
+  // mensagem na conversa B descartava a resposta armada na A, e a A nunca
+  // respondia — sem virada, sem notificação, silenciosamente.
+  pendingReplies: new Map(),
   defaultAvatarBg: '#0d8a74',
 
   // ==========================================================================
@@ -89,10 +90,19 @@ const app = {
     this.renderDashboard();
     this.renderProfile();
 
+    // O botão Voltar do navegador precisa trocar de tela: sem este listener
+    // a URL mudava e a tela ficava parada na view antiga.
+    window.addEventListener('hashchange', () => {
+      const hash = window.location.hash.replace('#', '');
+      if (this.isKnownView(hash) && hash !== this.currentView) {
+        this.applyView(hash);
+      }
+    });
+
     // Verifica o hash da URL para links diretos
     const hash = window.location.hash.replace('#', '');
-    if (hash && ['home', 'feed', 'create-item', 'messages', 'my-items', 'profile'].includes(hash)) {
-      this.navigateTo(hash);
+    if (this.isKnownView(hash)) {
+      this.applyView(hash);
     } else {
       this.navigateTo('home');
     }
@@ -159,9 +169,29 @@ const app = {
   },
 
   // Sistema de Navegação de Views
+  isKnownView(name) {
+    return ['home', 'feed', 'create-item', 'messages', 'my-items', 'profile'].includes(name);
+  },
+
   navigateTo(viewName) {
+    if (!this.isKnownView(viewName)) viewName = 'home';
+
+    // Não empilha uma entrada de histórico quando já estamos na view: sem
+    // esta checagem, cada ida e volta no histórico exigia vários "voltar".
+    if (window.location.hash.replace('#', '') !== viewName) {
+      window.location.hash = viewName;
+    }
+
+    this.applyView(viewName);
+  },
+
+  // Aplica a view sem mexer no histórico. Fica separado de navigateTo para o
+  // listener de hashchange poder reagir ao botão Voltar sem criar outra
+  // entrada de histórico.
+  applyView(viewName) {
+    if (!this.isKnownView(viewName)) viewName = 'home';
+
     this.currentView = viewName;
-    window.location.hash = viewName;
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
     // Atualiza a visibilidade das seções
@@ -189,7 +219,9 @@ const app = {
     } else if (viewName === 'my-items') {
       this.renderDashboard();
     } else if (viewName === 'messages') {
-      this.renderConversations();
+      // openConversation já redesenha a lista de conversas (e cobre o caso
+      // sem conversa nenhuma). Chamar renderConversations aqui renderizava a
+      // lista duas vezes, recriando o item sob o dedo da pessoa.
       this.openConversation(this.activeConversationId);
     } else if (viewName === 'profile') {
       this.renderProfile();
@@ -826,7 +858,13 @@ const app = {
       isMyItem: true
     };
 
-    DataService.addItem(newItem);
+    // O armazenamento do navegador tem cota (~5MB) e as fotos em base64
+    // esgotam rápido. Se não coube, o anúncio não existe: avisar em vez de
+    // anunciar sucesso.
+    if (!DataService.addItem(newItem)) {
+      this.showToast('Não foi possível salvar o anúncio: o armazenamento do navegador está cheio. Remova anúncios antigos com foto e tente de novo.', 'error');
+      return;
+    }
 
     // Atualiza as estatísticas do perfil
     profile.stats.posted += 1;
@@ -916,17 +954,42 @@ const app = {
   },
 
   openConversation(convId) {
-    this.activeConversationId = convId;
+    // Busca sem gravar: o painel não pode depender de uma escrita bem-sucedida
+    // no localStorage para abrir. Se o id não existir mais (dados limpos, bump
+    // de schema, conversa removida), caímos na primeira conversa disponível
+    // em vez de abortar e deixar a tela com os dados da conversa anterior.
+    const conversations = DataService.getConversations();
+    const conv = conversations.find(c => c.id === convId) || conversations[0] || null;
 
-    // Limpa as não lidas apenas desta conversa (e persistindo de verdade).
-    const conv = DataService.updateConversation(convId, c => { c.unread = 0; });
-    if (!conv) return;
+    if (!conv) {
+      this.renderNoConversation();
+      return;
+    }
+
+    // O campo de texto é markup estático e sobrevive à troca de view. Sem isto,
+    // o que a pessoa digitou na conversa A era enviado para a conversa B.
+    // A comparação é com a conversa ANTERIOR (não com o id pedido): abrir a
+    // conversa B a partir da A tem que limpar o rascunho da A, mesmo quando o
+    // id pedido existe na lista.
+    const previousId = this.activeConversationId;
+    this.activeConversationId = conv.id;
+
+    const input = document.getElementById('chat-input-field');
+    if (input && previousId && previousId !== conv.id) input.value = '';
+
+    // Limpa as não lidas só quando há algo a zerar. Uma falha de cota não pode
+    // travar o painel: a conversa abre e a não lida volta a aparecer.
+    if (Number(conv.unread) || 0) {
+      if (DataService.updateConversation(conv.id, c => { c.unread = 0; })) {
+        conv.unread = 0;
+      }
+    }
 
     // Não cancela a resposta pendente: ela sempre deve chegar. O timer
     // guarda a própria conversa e só redesenha se ela ainda for a ativa,
-    // senão vira não-lida. Só escondemos o indicador quando a conversa
+    // senão vira não lida. Só escondemos o indicador quando a conversa
     // pendente é outra, para o nome do contato não vazar para a tela errada.
-    this.syncTypingIndicator(convId);
+    this.syncTypingIndicator(conv.id);
     this.renderConversations();
 
     // O local vem do anúncio, não de um texto fixo.
@@ -960,6 +1023,43 @@ const app = {
     this.renderChatMessages(conv);
   },
 
+  // Não há conversa alguma (primeiro uso, storage limpo, tudo removido).
+  // O painel precisa de um estado próprio: sem isso ele ficava mostrando o
+  // HTML fixo do index.html enquanto a lista ao lado já estava vazia.
+  renderNoConversation() {
+    this.activeConversationId = null;
+    this.renderConversations();
+
+    const banner = document.getElementById('chat-item-banner');
+    if (banner) banner.style.display = 'none';
+
+    this.setText('chat-active-name', 'Nenhuma conversa');
+    this.setText('chat-active-avatar', '—');
+    this.setHtml('chat-active-status', 'Selecione ou inicie uma conversa pela lista ao lado.');
+
+    const typing = document.getElementById('chat-typing-indicator');
+    if (typing) typing.style.display = 'none';
+
+    const stream = document.getElementById('chat-messages-stream');
+    if (stream) {
+      stream.innerHTML = '<div class="conv-list-empty"><h3>Nenhuma conversa aberta</h3><p>Encontre um item e toque em "Falar com quem achou" para começar.</p></div>';
+    }
+  },
+
+  // Ancora o fluxo na última mensagem. O segundo passo no requestAnimationFrame
+  // é redundante na teoria, mas resolve na prática: fontes e miniaturas ainda
+  // decodificando deixam o scroll uns 27px curto do fundo, e a última
+  // mensagem fica cortada pela barra de envio.
+  scrollStreamToBottom() {
+    const stream = document.getElementById('chat-messages-stream');
+    if (!stream) return;
+
+    stream.scrollTop = stream.scrollHeight;
+    requestAnimationFrame(() => {
+      stream.scrollTop = stream.scrollHeight;
+    });
+  },
+
   // Sincroniza o indicador de digitação com a resposta pendente.
   // Some quando não há nada pendente ou quando a pendente é de OUTRA conversa
   // (senão o nome do contato vaza para a tela errada), e volta a aparecer
@@ -968,11 +1068,16 @@ const app = {
     const indicator = document.getElementById('chat-typing-indicator');
     if (!indicator) return;
 
-    if (this.pendingReplyConvId && this.pendingReplyConvId === convId) {
+    const pending = this.pendingReplies.get(convId);
+    if (pending) {
       const authorEl = document.getElementById('typing-author');
-      if (authorEl) authorEl.textContent = this.pendingReplyAuthor || '';
+      if (authorEl) authorEl.textContent = pending.author || '';
       indicator.style.display = 'block';
     } else {
+      // Limpa o nome junto: deixar o texto do contato anterior no DOM faz
+      // o nome vazar se o indicador for exibido por outro caminho.
+      const authorEl = document.getElementById('typing-author');
+      if (authorEl) authorEl.textContent = '';
       indicator.style.display = 'none';
     }
   },
@@ -981,18 +1086,19 @@ const app = {
     const stream = document.getElementById('chat-messages-stream');
     if (!stream) return;
 
-    if (!conv.messages || conv.messages.length === 0) {
+    if (!conv || !conv.messages || conv.messages.length === 0) {
       stream.innerHTML = `
         <div class="conv-list-empty">
           <h3>Nenhuma mensagem ainda</h3>
           <p>Escreva a primeira mensagem abaixo para iniciar a negociação.</p>
         </div>`;
+      this.scrollStreamToBottom();
       return;
     }
 
     stream.innerHTML = conv.messages.map(m => `
       <div class="chat-bubble-row ${m.sender === 'me' ? 'outbound' : 'inbound'}">
-        <div class="bubble-avatar">${m.sender === 'me' ? 'Você' : this.escapeHtml(conv.contact.initials)}</div>
+        <div class="bubble-avatar">${m.sender === 'me' ? 'Você' : this.escapeHtml(conv.contact && conv.contact.initials)}</div>
         <div class="chat-bubble">
           <p>${this.escapeHtml(m.text)}</p>
           <div class="bubble-time">${this.escapeHtml(m.time)} ${m.sender === 'me' ? '✓✓' : ''}</div>
@@ -1000,21 +1106,32 @@ const app = {
       </div>
     `).join('');
 
-    stream.scrollTop = stream.scrollHeight;
+    this.scrollStreamToBottom();
   },
 
   handleChatKeyDown(e) {
+    // Durante a composição de acentos (PT-BR no Windows, teclado no Android)
+    // o Enter confirma a letra e dispara keydown. Se a guarda não existe, a
+    // mensagem era enviada no meio da acentuação e o resto da palavra
+    // continuava no campo de envio.
+    if (e.isComposing || e.keyCode === 229) return;
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       this.sendChatMessage();
     }
   },
 
-  sendChatMessage() {
+  sendChatMessage(forcedText) {
     const input = document.getElementById('chat-input-field');
     if (!input) return;
 
-    const text = input.value.trim();
+    // As pílulas de resposta rápida usavam o campo como rascunho e disparavam
+    // esse rascunho junto: "oi, então " + "Agradecer" saíam como uma mensagem
+    // só. Com forcedText, a pílula manda só o próprio texto e o rascunho
+    // fica no campo.
+    const isQuickReply = typeof forcedText === 'string';
+    const text = (isQuickReply ? forcedText : input.value).trim();
     if (!text) return;
 
     // Procura a conversa ANTES de limpar o input, senão o texto digitado
@@ -1025,38 +1142,52 @@ const app = {
       return;
     }
 
-    input.value = '';
-
     const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const sent = { id: 'm-' + Date.now(), sender: 'me', text, time };
 
     // O retorno é o objeto realmente mutado. Renderizar `conv` (que vem de
     // outro getConversations) fazia a mensagem não aparecer na tela.
     const updated = DataService.updateConversation(conv.id, c => {
-      c.messages.push({
-        id: 'm-' + Date.now(),
-        sender: 'me',
-        text,
-        time
-      });
+      c.messages.push(sent);
       c.lastMessage = text;
       c.lastTime = time;
     });
 
-    this.renderConversations();
-    this.renderChatMessages(updated);
+    // Cota estourada NÃO pode barrar o envio. Recusar a mensagem aqui deixava
+    // o chat morto para sempre: o localStorage cheio é permanente (nada é
+    // removido), então toda tentativa futura era negada do mesmo jeito e o
+    // campo continuava cheio, sem volta. Mandar e avisar é melhor que um
+    // chat que não aceita mais nada.
+    //
+    // updateConversation já aplicou a mutação, mas numa cópia descartada.
+    // `conv` é a única cópia que sobrou, então é nela que a mensagem entra
+    // para a tela mostrar o que a pessoa escreveu.
+    let shown = updated;
+    if (!shown) {
+      conv.messages.push(sent);
+      conv.lastMessage = text;
+      conv.lastTime = time;
+      shown = conv;
+    }
 
-    // Simulador de Respostas Amigáveis do Bot
-    this.simulateIncomingReply(updated, text);
+    if (!isQuickReply) input.value = '';
+
+    this.renderConversations();
+    this.renderChatMessages(shown);
+
+    if (!updated) {
+      this.showToast('Mensagem na tela, mas o armazenamento está cheio: apague um item antigo para ela não sumir ao recarregar.', 'error');
+    }
+
+    // Simulador de Respostas Amigáveis do Bot.
+    // Roda mesmo sem gravação: sem isso a pessoa ficava olhando para uma
+    // mensagem que ninguém respondia — o chat parecia travado — e o
+    // indicador de digitação nunca aparecia.
+    this.simulateIncomingReply(shown, text);
   },
 
   sendQuickReply(text) {
-    const input = document.getElementById('chat-input-field');
-    if (!input) return;
-
-    // Preserva o rascunho em vez de sobrescrever.
-    const draft = input.value.trim();
-    input.value = draft ? `${draft} ${text}` : text;
-    this.sendChatMessage();
+    this.sendChatMessage(text);
   },
 
   // Dicionário de cores usado para responder "qual a cor do objeto?".
@@ -1155,19 +1286,16 @@ const app = {
 
   simulateIncomingReply(conv, text) {
     const convId = conv.id;
-    const author = String(conv.contact.name || '').split(' ')[0];
+    const author = String((conv.contact && conv.contact.name) || '').split(' ')[0];
     const replyText = this.buildReplyFor(conv, text || '');
 
-    // Uma resposta pendente por vez: uma nova mensagem cancela a anterior.
-    this.cancelPendingReplyTimerOnly();
-    this.pendingReplyConvId = convId;
-    this.pendingReplyAuthor = author;
-    this.syncTypingIndicator(convId);
+    // Só cancela a pendência da MESMA conversa. Com um timer único global,
+    // mandar mensagem na conversa B descartava a resposta armada na A, e a A
+    // nunca respondia — sem virada, sem notificação, silenciosamente.
+    this.cancelPendingReply(convId);
 
-    this.pendingReplyTimer = setTimeout(() => {
-      this.pendingReplyTimer = null;
-      this.pendingReplyConvId = null;
-      this.pendingReplyAuthor = null;
+    const timer = setTimeout(() => {
+      this.pendingReplies.delete(convId);
       const typingIndicator = document.getElementById('chat-typing-indicator');
       if (typingIndicator) typingIndicator.style.display = 'none';
 
@@ -1176,13 +1304,9 @@ const app = {
       // updateConversation aplica a mutação no array já em mãos, então a
       // resposta realmente é persistida (antes saveConversations(getConversations())
       // descartava a alteração e a mensagem sumia ao reabrir a conversa).
+      const reply = { id: 'm-reply-' + Date.now(), sender: 'them', text: replyText, time };
       const updated = DataService.updateConversation(convId, c => {
-        c.messages.push({
-          id: 'm-reply-' + Date.now(),
-          sender: 'them',
-          text: replyText,
-          time
-        });
+        c.messages.push(reply);
         c.lastMessage = replyText;
         c.lastTime = time;
         // Só conta como não lida se o usuário estiver olhando outra conversa.
@@ -1191,33 +1315,41 @@ const app = {
         }
       });
 
+      // Mesma razão do envio: com a cota estourada a resposta não grava, mas
+      // ela ainda precisa aparecer. Sem isto o indicador "está digitando"
+      // sumia e nada chegava, e o chat parecia travado.
+      let shown = updated;
+      if (!shown) {
+        conv.messages.push(reply);
+        conv.lastMessage = replyText;
+        conv.lastTime = time;
+        shown = conv;
+      }
+
       // Se o usuário trocou de conversa, renderConversations() atualiza o
       // contador e nada mais: não pode redesenhar o stream de outra conversa.
       this.renderConversations();
 
-      if (updated && updated.id === this.activeConversationId) {
-        this.renderChatMessages(updated);
+      if (shown.id === this.activeConversationId) {
+        this.renderChatMessages(shown);
       }
     }, 1300);
+
+    this.pendingReplies.set(convId, { timer, author });
+    this.syncTypingIndicator(convId);
   },
 
-  cancelPendingReplyTimerOnly() {
-    if (this.pendingReplyTimer) {
-      clearTimeout(this.pendingReplyTimer);
-      this.pendingReplyTimer = null;
-    }
-    this.pendingReplyConvId = null;
-    this.pendingReplyAuthor = null;
+  // Cancela a resposta pendente de UMA conversa. As demais seguem intactas.
+  cancelPendingReply(convId) {
+    const pending = this.pendingReplies.get(convId);
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    this.pendingReplies.delete(convId);
   },
 
   simulateAttachPhoto() {
-    const input = document.getElementById('chat-input-field');
-    if (!input) return;
-
-    const draft = input.value.trim();
-    input.value = draft ? `${draft} [Foto anexada do objeto]` : '[Foto anexada do objeto]';
     this.showToast('Foto do pertence anexada à conversa.', 'info');
-    this.sendChatMessage();
+    this.sendChatMessage('[Foto anexada do objeto]');
   },
 
   startChatForItem(itemId) {
@@ -1262,7 +1394,10 @@ const app = {
         ]
       };
       convs.unshift(conv);
-      DataService.saveConversations(convs);
+      if (!DataService.saveConversations(convs)) {
+        this.showToast('Não foi possível iniciar a conversa: o armazenamento do navegador está cheio.', 'error');
+        return;
+      }
     }
 
     this.activeConversationId = conv.id;
@@ -1291,10 +1426,20 @@ const app = {
     // Persiste a mudança pela mutação no array já em mãos.
     const conv = DataService.updateConversation(activeId, c => { c.itemStatus = 'resolved'; });
 
+    // A cota estourada impede a gravação: sem esta guarda, o null que o
+    // updateConversation devolve quebrava o chat com "cannot read property
+    // of null" no meio da ação.
+    if (!conv) {
+      this.showToast('Não foi possível marcar o item: o armazenamento do navegador está cheio.', 'error');
+      return;
+    }
+
     const item = conv.itemId ? DataService.getItemById(conv.itemId) : null;
     if (item) {
       item.status = 'resolved';
-      DataService.updateItem(item);
+      if (!DataService.updateItem(item)) {
+        this.showToast('Item marcado aqui, mas o armazenamento está cheio: a mudança não sobrevive ao recarregar.', 'error');
+      }
     }
 
     // Adiciona pontos de reputação ao perfil
@@ -1427,7 +1572,10 @@ const app = {
     if (!item) return;
 
     item.status = item.status === 'resolved' ? 'active' : 'resolved';
-    DataService.updateItem(item);
+    if (!DataService.updateItem(item)) {
+      this.showToast('Não foi possível salvar a mudança: o armazenamento do navegador está cheio.', 'error');
+      return;
+    }
     this.renderDashboard();
     this.showToast(`Status do item ${item.id} atualizado com sucesso.`, 'success');
   },
@@ -1465,7 +1613,10 @@ const app = {
     const status = document.getElementById('edit-item-status').value;
     const description = document.getElementById('edit-item-desc').value.trim();
 
-    DataService.updateItem({ id, title, location, status, description });
+    if (!DataService.updateItem({ id, title, location, status, description })) {
+      this.showToast('Não foi possível salvar as alterações: o armazenamento do navegador está cheio.', 'error');
+      return;
+    }
     this.closeEditModal();
     this.renderDashboard();
     this.showToast('Informações do item atualizadas!', 'success');

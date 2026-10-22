@@ -374,8 +374,16 @@ const DataService = {
     }
   },
 
+  // O localStorage costuma ter ~5MB. Sem este try/catch, uma foto grande
+  // estoura a cota, o setItem lança QuotaExceededError e o item nunca é
+  // salvo — o chamador não tem como avisar o usuário.
   saveItems(items) {
-    localStorage.setItem(STORAGE_KEYS.ITEMS, JSON.stringify(items));
+    try {
+      localStorage.setItem(STORAGE_KEYS.ITEMS, JSON.stringify(items));
+      return true;
+    } catch {
+      return false;
+    }
   },
 
   getItemById(id) {
@@ -383,11 +391,12 @@ const DataService = {
     return items.find(i => i.id === id);
   },
 
+  // Devolve o item gravado, ou null se a cota estourou — o chamador usa
+  // esse retorno para não anunciar sucesso quando nada foi salvo.
   addItem(newItem) {
     const items = this.getItems();
     items.unshift(newItem);
-    this.saveItems(items);
-    return newItem;
+    return this.saveItems(items) ? newItem : null;
   },
 
   updateItem(updatedItem) {
@@ -395,8 +404,9 @@ const DataService = {
     const idx = items.findIndex(i => i.id === updatedItem.id);
     if (idx !== -1) {
       items[idx] = { ...items[idx], ...updatedItem };
-      this.saveItems(items);
+      return this.saveItems(items);
     }
+    return false;
   },
 
   deleteItem(id) {
@@ -415,29 +425,41 @@ const DataService = {
     const raw = localStorage.getItem(STORAGE_KEYS.CONVERSATIONS);
     if (!raw) {
       this.saveConversations(INITIAL_CONVERSATIONS);
-      return INITIAL_CONVERSATIONS;
+      return this.clone(INITIAL_CONVERSATIONS);
     }
     try {
       return JSON.parse(raw);
     } catch {
-      return INITIAL_CONVERSATIONS;
+      return this.clone(INITIAL_CONVERSATIONS);
     }
   },
 
+  // Mesma proteção de saveItems: o localStorage tem cota (~5MB) e as fotos
+  // em base64 dos anúncios a esgotam rápido. Sem try/catch, o setItem lança
+  // QuotaExceededError e o chat inteiro quebra no meio de uma troca de
+  // conversa ou de um envio de mensagem.
   saveConversations(convs) {
-    localStorage.setItem(STORAGE_KEYS.CONVERSATIONS, JSON.stringify(convs));
+    try {
+      localStorage.setItem(STORAGE_KEYS.CONVERSATIONS, JSON.stringify(convs));
+      return true;
+    } catch {
+      return false;
+    }
   },
 
   // Aplica a mutação no array já em mãos e grava.
   // getConversations() devolve um JSON.parse novo a cada chamada, então mutar
   // um objeto e depois salvar um novo parse descarta a alteração silenciosamente.
+  //
+  // Devolve null quando nada foi persistido (cota estourada) para o chamador
+  // não anunciar uma mensagem como enviada quando ela se perdeu.
   updateConversation(convId, mutator) {
     const convs = this.getConversations();
     const conv = convs.find(c => c.id === convId);
     if (!conv) return null;
 
     mutator(conv);
-    this.saveConversations(convs);
+    if (!this.saveConversations(convs)) return null;
     return conv;
   },
 
@@ -459,8 +481,16 @@ const DataService = {
     }
   },
 
+  // Mesma proteção de saveItems/saveConversations: com a cota estourada o
+  // setItem lançava QuotaExceededError dentro do getProfile (que semeia o
+  // perfil na primeira visita) e derrubava o app inteiro no carregamento.
   saveProfile(profile) {
-    localStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(profile));
+    try {
+      localStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(profile));
+      return true;
+    } catch {
+      return false;
+    }
   },
 
   // Iniciais derivadas do nome, com fallback para quem tem um único nome
@@ -514,7 +544,14 @@ const DataService = {
     } else {
       favs.push(itemId);
     }
-    localStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(favs));
+    // Protegido pela mesma cota dos demais: favoritar é uma ação rápida e
+    // não pode derrubar a tela com QuotaExceededError quando o
+    // armazenamento já está cheio.
+    try {
+      localStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(favs));
+    } catch {
+      return this.getFavorites().includes(itemId);
+    }
     return favs.includes(itemId);
   }
 };
