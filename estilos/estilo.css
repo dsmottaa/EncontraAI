@@ -2713,7 +2713,13 @@ body {
   border-radius: var(--radius-xl);
   overflow: hidden;
   box-shadow: var(--shadow-lg);
-  height: 720px;
+  /* A altura fixa de 720px estourava a tela em monitores/notebooks com
+     menos de 850px de altura útil (a barra de envio saía da viewport). */
+  height: min(720px, calc(100vh - var(--header-h) - 90px));
+  height: min(720px, calc(100dvh - var(--header-h) - 90px));
+  /* Linha com altura travada: sem isso a coluna do chat estica pela
+     quantidade de mensagens e a barra de envio sai do quadro. */
+  grid-template-rows: minmax(0, 1fr);
 }
 
 /* Sidebar */
@@ -2902,6 +2908,8 @@ body {
   display: flex;
   flex-direction: column;
   background: #ffffff;
+  /* Sem isso a coluna estica pelo conteúdo e a barra de envio sai do quadro. */
+  min-height: 0;
 }
 
 /* Banner de Contexto do Item no Topo (Tela 6 do Figma) */
@@ -4547,14 +4555,109 @@ body {
 }
 
 @media (max-width: 768px) {
+  /* ==========================================================================
+     CABEÇALHO
+     Brand (125) + nav (126) + ações (193) + gaps somavam 484px dentro de
+     375px disponíveis e estouravam a tela em todas as telas. Aqui o botão
+     "Cadastrar Item" vira só o ícone e os gaps encolhem.
+     ========================================================================== */
+  .header-container {
+    gap: 10px;
+  }
+  .header-actions {
+    gap: 10px;
+  }
+  .nav-links {
+    gap: 2px;
+  }
+  .brand-area {
+    min-width: 0;
+  }
+  .brand-sub {
+    display: none;
+  }
+  .btn-add-item {
+    font-size: 0;
+    padding: 0 11px;
+  }
   .header-search {
     display: none;
   }
+
+  /* ==========================================================================
+     GRIDS: FILHOS COM min-width: 0
+     Item de grid tem min-width:auto, ou seja, não encolhe abaixo do
+     min-content. Sem isso a coluna cresce além da tela: o .hero-left media
+     436px e o .chat-room-area 560px num viewport de 390px.
+     ========================================================================== */
+  .hero-grid > *,
+  .messages-board > *,
+  .chat-room-area,
+  .form-type-selector > *,
+  .create-form-grid > *,
+  .profile-grid > *,
+  .items-grid > *,
+  .categories-row > * {
+    min-width: 0;
+  }
+
+  .container {
+    padding: 0 16px;
+  }
+
+  /* ==========================================================================
+     HOME / HERO
+     ========================================================================== */
   .hero-title {
-    font-size: 2.1rem;
+    font-size: 1.9rem;
+    overflow-wrap: anywhere;
+  }
+  .hero-grid {
+    padding: 28px 18px;
+    gap: 24px;
+  }
+  .hero-stats {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: space-between;
   }
   .hero-dual-cta {
     flex-direction: column;
+  }
+  /* O card de atividade ao vivo ocupa a coluna inteira, sem a margem que
+     empurrava o card para fora da tela. */
+  .hero-right {
+    justify-content: flex-start;
+    width: 100%;
+  }
+  .live-activity-card {
+    width: 100%;
+    margin-left: 0;
+  }
+  /* Abas dos itens recentes: título e filtros estavam na mesma linha e o
+     grupo de filtros (288px) estourava a tela. */
+  .section-header-tabs {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  .filter-tabs-pill {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .tab-pill {
+    flex-shrink: 0;
+  }
+  /* Banner de chamada: o escudo de 120px ao lado do texto não cabia. */
+  .cta-banner-card {
+    padding: 28px 20px;
+  }
+  .cta-banner-badge-art {
+    display: none;
+  }
+  .cta-banner-buttons {
+    flex-direction: column;
+    align-items: stretch;
   }
   .unified-search-box {
     flex-direction: column;
@@ -4581,17 +4684,481 @@ body {
   .auth-card-left {
     display: none;
   }
+
+  /* ==========================================================================
+     CHAT
+     O chat ocupa a tela inteira abaixo do header. A altura definida aqui é
+     o que dá limite para o flex resolver: o stream rola e a barra de
+     entrada fica sempre visível. vh primeiro para quem não tem dvh.
+     ========================================================================== */
+  .messages-container {
+    height: calc(100vh - var(--header-h));
+    height: calc(100dvh - var(--header-h));
+    padding: 0;
+  }
   .messages-board {
     grid-template-columns: 1fr;
-    height: auto;
+    /* Linhas explícitas: com as duas implícitas em auto, a altura do conteúdo
+       do chat esticava o quadro e o overflow:hidden cortava a barra de
+       entrada. "auto 1fr" prende a sidebar no topo e devote o resto ao chat.
+       O min-height:0 nos filhos deixa essa 1fr encolher de verdade. */
+    grid-template-rows: auto minmax(0, 1fr);
+    height: 100%;
+    min-height: 0;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+  .messages-board > * {
+    min-height: 0;
   }
   .conversations-sidebar {
-    height: 300px;
+    /* Antes 300px fixos, que comiam um terço da tela de um celular antes do
+       chat começar. */
+    height: 168px;
+    flex-shrink: 0;
+    border-right: none;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .conv-sidebar-header {
+    padding: 12px 16px;
+  }
+  .conv-sidebar-header h2 {
+    font-size: 1.05rem;
+  }
+  /* Alvos de toque: o botão de anexar, a info de segurança e as pílulas de
+     resposta rápida ficavam com 27-32px, abaixo do mínimo confortável. */
+  .chat-attach-btn,
+  .btn-icon-soft {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .quick-reply-pill {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 14px;
+  }
+  .chat-item-context-banner {
+    padding: 10px 16px;
+    /* Sem o wrap, a miniatura + texto e os botões disputavam a mesma linha e
+       o texto do item quebrava em 5 linhas (banner de 237px), comendo o
+       fluxo de mensagens do chat. */
+    flex-wrap: wrap;
+  }
+  .item-context-info {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  /* A coluna de texto precisa poder encolher: o endereço completo tem
+     min-content de 577px e empurrava o banner para fora da tela. */
+  .item-context-info > div {
+    min-width: 0;
+  }
+  .item-context-title {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .item-context-location {
+    /* Uma linha só: o endereço completo quebrava em 3 linhas e empurrava o
+       fluxo de mensagens do chat para fora da tela. */
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .item-context-actions {
+    width: 100%;
+  }
+  .item-context-actions .btn {
+    flex: 1;
+  }
+  .chat-safety-banner {
+    padding: 10px 16px;
+    font-size: 0.78rem;
+  }
+  .chat-messages-stream {
+    padding: 14px;
+  }
+  /* 92% em vez de 75%: em tela estreita o balão de 75% vira uma tira
+     estreita e quebra palavras longas. */
+  .chat-bubble-row {
+    max-width: 92%;
+  }
+  .chat-input-bar {
+    padding: 10px 12px;
+    z-index: 10;
+    /* Não encolhe: se o chrome do chat passar da altura da coluna, quem sai
+       da tela é o stream (que rola), nunca o campo de envio. */
+    flex-shrink: 0;
+  }
+  .quick-replies-row {
+    flex-shrink: 0;
+  }
+  .chat-input-bar input {
+    /* 16px evita o zoom automático do iOS ao focar o campo. */
+    font-size: 16px;
+    padding: 12px 16px;
+    /* O input tem largura intrínseca e empurrava o botão de enviar para
+       fora da barra em tela estreita. */
+    min-width: 0;
+  }
+  .btn-send-message {
+    padding: 12px 16px;
+    flex-shrink: 0;
+  }
+  .chat-attach-btn {
+    flex-shrink: 0;
+  }
+
+  /* ==========================================================================
+     MEUS ITENS
+     As abas e a busca ficavam na mesma linha e estouravam a tela; a busca
+     ficava espremida em 54px (input de 10px). Aqui a linha quebra.
+     ========================================================================== */
+  .table-card-header {
+    flex-wrap: wrap;
+    padding: 16px;
+  }
+  .dash-tabs {
+    flex: 1 1 100%;
+    overflow-x: auto;
+  }
+  .dash-tab {
+    flex-shrink: 0;
+  }
+  .dash-search-box {
+    flex: 1 1 100%;
+    width: auto;
+  }
+  .dash-search-box input {
+    min-width: 0;
   }
   .dashboard-stats-grid {
     grid-template-columns: 1fr 1fr;
   }
+  .dashboard-stats-grid > * {
+    min-width: 0;
+  }
   .profile-grid {
     grid-template-columns: 1fr;
+  }
+
+  /* ==========================================================================
+     FILTROS DO FEED
+     O input de busca do painel de filtros tem largura intrínseca de input e
+     empurrava o card para fora da tela em telas estreitas.
+     ========================================================================== */
+  .feed-layout > *,
+  .feed-sidebar,
+  .filter-card {
+    min-width: 0;
+  }
+  .filter-card {
+    padding: 16px;
+  }
+  .filter-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .sidebar-search-input input {
+    min-width: 0;
+  }
+  .seg-btn {
+    min-width: 0;
+    padding: 6px 4px;
+  }
+  /* O select de ordenação tem largura intrínseca e empurrava a barra. */
+  .sort-control {
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+  .sort-control select {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /* Cabeçalho de página (título + botão) e linha de envio do formulário:
+     os dois botões lado a lado não cabem em tela estreita. */
+  .page-header-row {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .form-submit-row {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  .form-submit-row .btn {
+    flex: 1 1 100%;
+  }
+
+  /* ==========================================================================
+     PERFIL
+     Avatar + info + botão "Editar Perfil" na mesma linha estouravam a tela e
+     o botão ficava cortado (o card tem overflow:hidden). Aqui empilha.
+     ========================================================================== */
+  .profile-hero-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 24px 20px 20px;
+  }
+  .btn-edit-profile {
+    margin-left: 0;
+    align-self: flex-start;
+  }
+  .profile-metrics-strip {
+    flex-wrap: wrap;
+    gap: 14px;
+    padding: 16px 20px;
+  }
+  .metric-col {
+    flex: 1 1 40%;
+    min-width: 0;
+  }
+  .metric-separator {
+    display: none;
+  }
+
+  /* ==========================================================================
+     CADASTRAR ITEM
+     Os dois cartões (Perdi / Encontrei) ficavam lado a lado e estouravam.
+     ========================================================================== */
+  .form-type-selector {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Telas muito estreitas (iPhone SE 1ª geração, 320px) */
+@media (max-width: 420px) {
+  .conversations-sidebar {
+    height: 140px;
+  }
+  /* Dois cartões de estatística lado a lado não cabem em 320px. */
+  .dashboard-stats-grid {
+    grid-template-columns: 1fr;
+  }
+  .item-context-actions {
+    /* Empilhados os dois botões, lado a lado não cabem em 320px. */
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  .item-context-actions .btn {
+    flex: 1 1 0;
+    min-width: 0;
+    font-size: 0.72rem;
+    padding: 8px 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Cabeçalho: em 320px a marca, os ícones de navegação e as ações não
+     cabiam na mesma linha e o texto "Encontra AÍ" invadia os ícones. */
+  .header-container {
+    gap: 10px;
+  }
+  .brand-main {
+    font-size: 0.95rem;
+  }
+  .brand-area {
+    gap: 6px;
+    min-width: 0;
+  }
+  .brand-name {
+    min-width: 0;
+  }
+  .quick-replies-row {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .chat-input-bar {
+    gap: 8px;
+    padding: 8px 10px;
+  }
+  .btn-send-message {
+    /* Rótulo some no lugar; o ícone de papel airplanes continua. */
+    font-size: 0;
+    padding: 12px;
+  }
+}
+
+/* ==========================================================================
+   TELA BAIXA (celular deitado, janela curta)
+   O cromo fixo da coluna do chat (banner do item + dica de segurança +
+   pílulas + campo) somava mais que a altura útil: no deitado o banner
+   sozinho media 252px numa sala de 284px e o campo de texto era cortado.
+   Aqui o cromo encolhe para caber, e o que ainda sobrar vira rolagem da
+   coluna (com o campo grudado no rodapé).
+   ========================================================================== */
+@media (max-height: 700px) {
+  .chat-safety-banner {
+    /* 54-58px de dica que se repete a cada conversa. some aqui para o chat
+       respirar; a mesma orientação aparece no banner de contexto do item. */
+    display: none;
+  }
+  .chat-item-context-banner {
+    padding: 8px 12px;
+  }
+  .item-context-title {
+    font-size: 0.82rem;
+  }
+  /* A lista de conversas com 140px comia um terço de uma tela de 568px de
+     altura e empurrava o campo de envio para fora da viewport. */
+  .conversations-sidebar {
+    height: 120px;
+  }
+  /* As pílulas de resposta rápida encolhem, mas continuam disponíveis. */
+  .quick-replies-row {
+    padding: 4px 12px;
+  }
+  .quick-reply-pill {
+    min-height: 34px;
+    padding: 4px 10px;
+  }
+  .chat-input-bar {
+    flex-shrink: 0;
+  }
+  .chat-messages-stream {
+    min-height: 0;
+  }
+  /* As ações do item (marcar como devolvido, etc.) vão para baixo do título
+     e viram a única linha rolável do banner, em vez de empilharem e
+     multiplicar a altura.
+     O flex-direction precisa ser redefinido aqui: o bloco de max-width:420px
+     deixa a coluna, e com os dois valendo em 360x640 as ações empilhavam e o
+     banner crescia de 110px para 186px, comendo o fluxo de mensagens. */
+  .item-context-actions {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    width: 100%;
+  }
+  .item-context-actions > * {
+    flex-shrink: 0;
+  }
+}
+
+/* Celular deitado (altura curta e largura grande): como o bloco de 768px não
+   vale aqui, o chat continuava com a altura fixa de 720px e a barra de envio
+   ficava fora da viewport. */
+@media (min-width: 769px) and (max-height: 700px) {
+  .messages-container {
+    height: calc(100vh - var(--header-h));
+    height: calc(100dvh - var(--header-h));
+    padding: 12px;
+  }
+  .messages-board {
+    height: 100%;
+    min-height: 0;
+    /* Linha com altura travada: sem isso a coluna do chat estica pela
+       quantidade de mensagens e a barra de envio sai do quadro. */
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .chat-room-area {
+    min-height: 0;
+  }
+}
+
+/* Tela baixa (iPhone SE em pé: 320x568, 375x667): as respostas rápidas saem
+   para sobrar altura para as mensagens, que é o que importa no chat. */
+@media (max-height: 620px) {
+  .quick-replies-row {
+    display: none;
+  }
+  .conversations-sidebar {
+    height: 110px;
+  }
+}
+
+@media (max-height: 560px) {
+  .quick-replies-row {
+    display: none;
+  }
+  .item-context-actions {
+    display: none;
+  }
+  /* Endereço do local: a pessoa já leu na conversa e é a linha mais alta do
+     banner. Fica para quando há espaço. */
+  .item-context-location {
+    display: none;
+  }
+  .user-status-text {
+    display: none;
+  }
+  .chat-item-context-banner {
+    padding: 5px 10px;
+  }
+  .chat-person-header {
+    padding: 4px 10px;
+  }
+  .chat-messages-stream {
+    min-height: 60px;
+  }
+  /* Deitado, a sidebar de 320px deixa a sala com ~474px e os balões quebram
+     em tantas linhas que a última mensagem não cabia na altura restante do
+     fluxo. Estreitar a sidebar e usar mais da largura encurta os balões. */
+  .conversations-sidebar {
+    width: 240px;
+  }
+  .chat-bubble-row {
+    max-width: 92%;
+  }
+}
+
+/* Tela muito baixa (celular deitado ou Split View): o chrome do chat encolhe
+   para caber banner + cabeçalho + barra de envio, e o fluxo fica com o resto.
+   Fica depois do bloco de 560px para vencer o min-height do stream. */
+@media (max-height: 440px) {
+  .chat-item-context-banner {
+    padding: 4px 10px;
+  }
+  .item-context-title {
+    font-size: 0.78rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .chat-person-header {
+    padding: 2px 10px;
+  }
+  .avatar-circle-sm {
+    width: 28px;
+    height: 28px;
+    font-size: 0.75rem;
+  }
+  .chat-messages-stream {
+    min-height: 0;
+  }
+  /* Banner e cabeçalho da conversa podem encolher: quem não pode faltar
+     nunca é a barra de envio. */
+  .chat-item-context-banner,
+  .chat-person-header {
+    flex-shrink: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+}
+
+/* Celular deitado com largura para duas colunas: voltar a lista de conversas
+   para a lateral, senão ela come a altura e sobram 28px de mensagens. */
+@media (min-width: 600px) and (max-height: 500px) {
+  .messages-board {
+    grid-template-columns: 220px 1fr;
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .conversations-sidebar {
+    height: auto;
+    border-bottom: none;
+    border-right: 1px solid var(--border-light);
+  }
+  .chat-bubble-row {
+    max-width: 78%;
   }
 }
