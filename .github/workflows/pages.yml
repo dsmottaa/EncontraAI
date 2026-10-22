@@ -1,0 +1,48 @@
+name: Deploy no GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Projeto sem build: a raiz do repositório já é o site estático.
+      - name: Configurar Pages
+        id: pages
+        uses: actions/configure-pages@v5
+
+      # Montamos um _site com só o que a aplicação usa. "rascunho/" e
+      # "telas_figma/" são capturas de tela de trabalho (~7MB) e não devem
+      # ir para produção. O passo é separado porque upload-pages-artifact
+      # recebe uma única string de path, e o campo não aceita lista.
+      - name: Montar o site
+        run: |
+          mkdir -p _site
+          cp index.html _site/
+          cp -R estilos scripts recursos _site/
+
+      - name: Publicar artefato
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Fazer deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
